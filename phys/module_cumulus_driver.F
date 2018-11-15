@@ -177,8 +177,9 @@ CONTAINS
    USE module_cu_mskf   , ONLY : mskf_cps
 #endif
    USE module_cu_gd     , ONLY : grelldrv
-   USE module_cu_gfdrvr , ONLY : gfdrvr         !gf
-   USE module_cu_gf_wrfdrv     , ONLY : gfdrv
+   USE module_cu_gf_drvr , ONLY : gfdrv
+!   USE module_cu_gfdrvr , ONLY : gfdrvr         !gf
+!   USE module_cu_gf_wrfdrv     , ONLY : gfdrv
    USE module_cu_g3     , ONLY : g3drv,conv_grell_spread3d
 #if ( WRFPLUS == 1 )
    USE module_cu_du     , ONLY : DUCU   
@@ -716,6 +717,8 @@ CONTAINS
    logical :: l_flux
    LOGICAL :: decided , run_param , doing_adapt_dt
 
+   INTEGER :: bl_mynn_edmf
+
 #if (EM_CORE == 1)
    INTEGER,  INTENT(IN)        :: alevsiz_cu, num_months, no_src_types_cu 
    INTEGER,  INTENT(IN)        :: aercu_opt  
@@ -736,6 +739,7 @@ CONTAINS
     field_conv=0.
     spp_conv=0
 
+   bl_mynn_edmf = 0
 
    l_flux=.FALSE.
    if (present(f_flux)) l_flux=f_flux
@@ -1307,64 +1311,14 @@ CONTAINS
          endif
 #endif
 
-#if (NMM_CORE == 1 )
-
-           CALL GFDRVR(                                         &
-                DT=dt                                           &
-               ,DX2D=dx2d,DY=dynmm                              &
-               ,RHO=rho,RAINCV=raincv,PRATEC=tmppratec          &
-               ,U=u,V=v,T=t,W=w                                 &
-               ,Q=qv_curr,P=p,PI=pi                             &
-               ,DZ8W=dz8w ,P8W=p8w                              &
-               ,htop=htop,hbot=hbot                             &
-               ,ktop_deep=ktop_deep                             &
-               ,HT=ht,hfx=hfx,qfx=qfx                           &
-               ,xland=xland                                     &
-               ,GDC=gd_cloud,GDC2=gd_cloud2,kpbl=kpbl           &
-               ,k22_shallow=k22_shallow                         &
-               ,kbcon_shallow=kbcon_shallow                     &
-               ,ktop_shallow=ktop_shallow                       &
-               ,xmb_shallow=xmb_shallow                         &
-               ,ierr_shallow=ierr_shallow                       & !egrell debugging
-               ,ishallow_g3=ishallow                            &
-               ,ichoice=clos_choice                             &
-               ,IDS=ids,IDE=ide,JDS=jds,JDE=jde,KDS=kds,KDE=kde &
-               ,IMS=ims,IME=ime,JMS=jms,JME=jme,KMS=kms,KME=kme &
-               ,ITS=its,ITE=ite,JTS=jts,JTE=jte,KTS=kts,KTE=kte &
-               ,PERIODIC_X=periodic_x,PERIODIC_Y=periodic_y     &
-               ,RQVCUTEN=RQVCUTEN,RQCCUTEN=RQCCUTEN             &
-              ! optionals
-#if (NMM_CORE == 1 )
-               ,RQICUTEN=RQICUTEN               &
-               ,RQVFTEN=forceq                  &
-               ,RTHFTEN=forcet                  &
-               ,RTHCUTEN=RTHCUTEN               &
-#else
-               ,RTHCUTEN=RTHCUTEN            &
-               ,RTHFTEN=RTHFTEN              &
-               ,RQICUTEN=RQICUTEN            &
-               ,RQVFTEN=RQVFTEN              &
-#endif
-               ,RTHRATEN=RTHRATEN                               &
-               ,RQVBLTEN=RQVBLTEN,RTHBLTEN=RTHBLTEN             &
-               ,RUCUTEN=RUCUTEN,RVCUTEN=RVCUTEN                 &
-               ,F_QV=f_qv,F_QC=f_qc,F_QR=f_qr                   &
-               ,F_QI=f_qi,F_QS=f_qs                             &
-#if ( WRF_DFI_RADAR == 1 )
-                 ! Optional CAP suppress option
-              ,do_capsuppress=do_capsuppress                    &
-              ,cap_suppress_loc=cap_suppress_loc                &
-#endif
-#if (NMM_CORE == 1 )
-               ,SCALEFUN=SCALEFUN                  & ! CNV scale functions
-               ,SIGMU=SIGMU                        & ! CNV updraft fractions
-#endif
-                                                                )
-
-#else
 
           CALL GFDRV(spp_conv,pattern_spp_conv,field_conv,       &
-                DT=dt,DX=dx                                     &
+                DT=dt,                                           &
+#if (NMM_CORE == 1 ) 
+               DX2D=dx2d,DY=dynmm                              &
+#else
+               DX=dx                                     &
+#endif
                ,RHO=rho,RAINCV=raincv,PRATEC=tmppratec          &
                ,U=u,V=v,T=t,W=w,Q=qv_curr,P=p,PI=pi             &
                ,DZ8W=dz8w ,P8W=p8w                              &
@@ -1376,29 +1330,46 @@ CONTAINS
                ,ktop_shallow=ktop_shallow                       &
                ,xmb_shallow=xmb_shallow                         &
                ,ichoice=clos_choice,ishallow_g3=ishallow        &
+#if (HWRF == 1)
+               ,ierr_shallow                                     &
+#endif
                ,IDS=ids,IDE=ide,JDS=jds,JDE=jde,KDS=kds,KDE=kde &
                ,IMS=ims,IME=ime,JMS=jms,JME=jme,KMS=kms,KME=kme &
-!              ,IPS=ips,IPE=ipe,JPS=jps,JPE=jpe,KPS=kps,KPE=kpe &
                ,ITS=its,ITE=ite,JTS=jts,JTE=jte,KTS=kts,KTE=kte &
                ,PERIODIC_X=periodic_x,PERIODIC_Y=periodic_y     &
               ! optionals
-#if (NMM_CORE == 1 ) 
-               ,RTHCUTEN=RTHCUTEN ,RTHFTEN=forcet               &
-               ,RTHRATEN=RTHRATEN                               &
-               ,RQICUTEN=RQICUTEN ,RQVFTEN=forceq               &
-#else
-               ,RTHCUTEN=RTHCUTEN ,RTHFTEN=RTHFTEN              &
-               ,RTHRATEN=RTHRATEN                               &
-               ,RQICUTEN=RQICUTEN ,RQVFTEN=RQVFTEN              &
-               ,rqvblten=rqvblten,rthblten=rthblten             &
-#endif
                ,RQVCUTEN=RQVCUTEN,RQCCUTEN=RQCCUTEN             &
+               ,RQICUTEN=RQICUTEN                               &
+
+#if (NMM_CORE == 1 ) 
+               ,RQVFTEN=forceq                                  &
+               ,RTHFTEN=forcet                                  &
+               ,RTHCUTEN=RTHCUTEN                               &
+               ,RTHRATEN=RTHRATEN                               &
+#else
+               ,RQVFTEN=RQVFTEN                                 &
+               ,RTHFTEN=RTHFTEN                                 &
+               ,RTHCUTEN=RTHCUTEN                               &
+               ,RTHRATEN=RTHRATEN                               &
+#endif
+               ,rqvblten=rqvblten,rthblten=rthblten             &
+#if (HWRF == 1)
+               ,RUCUTEN=RUCUTEN,RVCUTEN=RVCUTEN                 &
+#else
                ,dudt_phy=rucuten, dvdt_phy=rvcuten              &
+#endif
 #if ( WRF_DFI_RADAR == 1 )
                  ! Optional CAP suppress option
                ,do_capsuppress=do_capsuppress                   &
                ,cap_suppress_loc=cap_suppress_loc               &
 #endif 
+              ,bl_mynn_edmf                                     &
+#if (HWRF == 1 )
+               ,SCALEFUN=SCALEFUN                  & ! CNV scale functions
+               ,SIGMU=SIGMU                        & ! CNV updraft fractions
+#endif
+                                                                )
+
 
 #endif
 
