@@ -63,9 +63,9 @@ MODULES = \
 	module_cu_tiedtke.o\
 	module_cu_ntiedtke.o\
 	module_cu_gd.o \
-	module_cu_gf_drvr.o \
 	module_cu_gf_deep.o \
 	module_cu_gf_sh.o \
+	module_cu_gf_drvr.o \
 	module_cu_ksas.o \
 	module_cu_nsas.o \
 	module_cu_sas.o \

@@ -1331,7 +1331,7 @@ CONTAINS
                ,xmb_shallow=xmb_shallow                         &
                ,ichoice=clos_choice,ishallow_g3=ishallow        &
 #if (HWRF == 1)
-               ,ierr_shallow                                     &
+               ,ierr_shallow=ierr_shallow                       &
 #endif
                ,IDS=ids,IDE=ide,JDS=jds,JDE=jde,KDS=kds,KDE=kde &
                ,IMS=ims,IME=ime,JMS=jms,JME=jme,KMS=kms,KME=kme &
@@ -1363,15 +1363,12 @@ CONTAINS
                ,do_capsuppress=do_capsuppress                   &
                ,cap_suppress_loc=cap_suppress_loc               &
 #endif 
-              ,bl_mynn_edmf                                     &
+              ,bl_mynn_edmf=bl_mynn_edmf                        &
 #if (HWRF == 1 )
                ,SCALEFUN=SCALEFUN                  & ! CNV scale functions
                ,SIGMU=SIGMU                        & ! CNV updraft fractions
 #endif
                                                                 )
-
-
-#endif
 
      CASE (CAMZMSCHEME)
           IF (PRESENT(z_at_w) .AND. PRESENT(mavail)                 &
