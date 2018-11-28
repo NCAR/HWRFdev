@@ -196,8 +196,8 @@ state integer NTIME0         -     dyn_nmm     1      -    r  "NTIME0" "COUNT FO
 # flag for nest movement
 state  logical moved       -     misc       1      -     r
 
-state   real   ducudt       ijk     misc        1         -    r   "UMMIX" "U TENDENCY  MOMENTUM MIXING IN Cu"
-state   real   dvcudt       ijk     misc        1         -    r   "VMMIX" "V TENDENCY  MOMENTUM MIXING IN Cu"
+state   real   ducudt       ijk     misc        1         -    rh023   "UMMIX" "U TENDENCY  MOMENTUM MIXING IN Cu"
+state   real   dvcudt       ijk     misc        1         -    rh023   "VMMIX" "V TENDENCY  MOMENTUM MIXING IN Cu"
 
 
 state integer randstate1     ij     dyn_nmm     1      -    r  "randstate1" "random number generator state word 1"
@@ -409,15 +409,15 @@ state  real     rc2d    ij    dyn_nmm   1    -       h        "RC2D"     "critic
 state  real   dku3d    ijk    dyn_nmm   1    -      rh      "DKU3D"     "Momentum Diffusivity" "m*m/s"
 state  real   dkt3d    ijk    dyn_nmm   1    -      rh      "DKT3D"     "Thermal Diffusivity" "m*m/s"
 
-state  real   SCALEFUN  ij    dyn_nmm   1    -     rh       "SCALEFUN"  "CNV Mass Scale function(0-1)"        " "
-state  real   SCALEFUN1 ij    dyn_nmm   1    -     rh       "SCALEFUN1"  "CNV Mass Scale function 1(0-1)"        " "
-state  real   SIGMU     ij    dyn_nmm   1    -     rh       "SIGMU"  "CNV deep updraft fractio     n(0-1)"        " "
-state  real   SIGMU1    ij    dyn_nmm   1    -     rh       "SIGMU1"  "CNV shallow updraft fra     ction(0-1)"  
-state  real   DTHCUDT  ijk    dyn_nmm   1    -     r        "DTHCUDT"     "TH tendency due to CU" "K/s"
-state  real   DQVCUDT  ijk    dyn_nmm   1    -     r        "DQVCUDT"     "QV tendency due to CU" "kg/kg/s"
+state  real   SCALEFUN  ij    dyn_nmm   1    -     rh023       "SCALEFUN"  "CNV Mass Scale function(0-1)"        " "
+state  real   SCALEFUN1 ij    dyn_nmm   1    -     rh023       "SCALEFUN1"  "CNV Mass Scale function 1(0-1)"        " "
+state  real   SIGMU     ij    dyn_nmm   1    -     rh023       "SIGMU"  "CNV deep updraft fraction(0-1)"        " "
+state  real   SIGMU1    ij    dyn_nmm   1    -     rh023       "SIGMU1"  "CNV shallow updraft fraction(0-1)"  
+state  real   DTHCUDT  ijk    dyn_nmm   1    -     rh023        "DTHCUDT"     "TH tendency due to CU" "K/s"
+state  real   DQVCUDT  ijk    dyn_nmm   1    -     rh023        "DQVCUDT"     "QV tendency due to CU" "kg/kg/s"
 state  real   DQRCUDT  ijk    dyn_nmm   1    -     r        "DQRCUDT"     "QR tendency due to CU" "kg/kg/s"
-state  real   DQCCUDT  ijk    dyn_nmm   1    -     r        "DQCCUDT"     "QC tendency due to CU" "Kg/kg/s"
-state  real   DQICUDT  ijk    dyn_nmm   1    -     r        "DQICUDT"     "QI tendency due to CU" "Kg/kg/s"
+state  real   DQCCUDT  ijk    dyn_nmm   1    -     rh023        "DQCCUDT"     "QC tendency due to CU" "Kg/kg/s"
+state  real   DQICUDT  ijk    dyn_nmm   1    -     rh023        "DQICUDT"     "QI tendency due to CU" "Kg/kg/s"
 state  real   DQSCUDT  ijk    dyn_nmm   1    -     r        "DQSCUDT"     "QS tendency due to CU" "Kg/kg/s"
 state  real   DTHBLDT  ijk    dyn_nmm   1    -     r        "DTHBLDT"     "TH tendency due to PBL" "K/s"
 state  real   DQVBLDT  ijk    dyn_nmm   1    -     r        "DQVBLDT"     "QV tendency due to PBL" "Kg/kg/s"
@@ -485,9 +485,9 @@ state  real   sigt4     ij    dyn_nmm   1    -     rh023d=(DownCopy)       "SIGT
 state  real   tg        ij    dyn_nmm   1    -     i01rh023d=(DownNear) "TGROUND"   "Deep ground soil temperature"                    "K"
 state  real   dfrlg     k     dyn_nmm   1    Z     i01r     "DFRLG"     "Std atmosphere height of model layer interfaces" "m"
 state integer lvl       ij    dyn_nmm   1    -     ir
-state    integer  k22_deep     ij      misc        1         -       -       "K22_DEEP"             "K22 LEVEL FROM DEEPCONVECTION (G3 only)"             ""
-state    integer  kbcon_deep     ij      misc        1         -     -       "KBCON_DEEP"             "KBCON LEVEL FROM DEEP CONVECTION (G3 only)"             ""
-state    integer  ktop_deep     ij      misc        1         -      rh      "KTOP_DEEP"             "KTOP LEVEL FROM DEEP CONVECTION (G3 only)"             ""
+state    integer  k22_deep     ij      misc        1         -       rh023       "K22_DEEP"             "K22 LEVEL FROM DEEPCONVECTION (G3 only)"             ""
+state    integer  kbcon_deep     ij      misc        1         -     rh023       "KBCON_DEEP"             "KBCON LEVEL FROM DEEP CONVECTION (G3 only)"             ""
+state    integer  ktop_deep     ij      misc        1         -      rh023      "KTOP_DEEP"             "KTOP LEVEL FROM DEEP CONVECTION (G3 only)"             ""
 state  real  RAINCV_A       ij  misc     1   -      r      "RAINCV_A"     "taveragd TIME-STEP CUMULUS PRECIPITATION"                         "mm"
 state  real  RAINCV_B       ij  misc     1   -      r       "RAINCV_B"     "taveragd TIME-STEP CUMULUS PRECIPITATION"                         "mm"
 state  real  GD_CLOUD      ikj  misc     1   -      r       "GD_CLOUD" "CLOUD WATER/ICE MIXING RAIO IN GD CLOUD"         "kg kg-1"
@@ -499,11 +499,11 @@ state  real  QI_CU         ikj  misc     1   -      r      "QI_CU"        "CLOUD
 state    real  QC_BL             ikj      misc        1         -      r      "QC_BL"                "CLOUD WATER MIXING RATIO IN PBL schemes"          "kg kg-1"
 state    real  CLDFRA_BL       ikj      misc        1         -      -        "CLDFRA_BL"             "CLOUD FRACTION pbl"                                   ""
 state    real  GD_CLDFR         ikj      misc        1         -      r     "GD_CLDFR"              "GD CLOUD Fraction"         " ? "
-state  real  xmb_shallow    ij   misc    1   -      rh      "XMB_SHALLOW"     "MASSFLUX FROM SHALLOW CONVECTION (G3, GF only)"        ""
-state  integer  k22_shallow  ij   misc    1   -      rh     "K22_SHALLOW"     "K22 LEVEL FROM SHALLOW CONVECTION (G3, GF only)"       ""
-state  integer  kbcon_shallow  ij   misc    1   -    rh     "KBCON_SHALLOW"   "KBCON LEVEL FROM SHALLOW CONVECTION (G3, GF only)"     ""
-state  integer  ktop_shallow   ij   misc    1   -     rh     "KTOP_SHALLOW"   "KTOP LEVEL FROM SHALLOW CONVECTION (G3, GF only)"      ""
-state  integer  ierr_shallow   ij   misc    1   -     h     "IERR_SHALLOW"   "CODE FOR TURNING OFF SHALLOW CU AT A PT(GF only)"      ""
+state  real  xmb_shallow    ij   misc    1   -      rh023      "XMB_SHALLOW"     "MASSFLUX FROM SHALLOW CONVECTION (G3, GF only)"        ""
+state  integer  k22_shallow  ij   misc    1   -      rh023     "K22_SHALLOW"     "K22 LEVEL FROM SHALLOW CONVECTION (G3, GF only)"       ""
+state  integer  kbcon_shallow  ij   misc    1   -    rh023     "KBCON_SHALLOW"   "KBCON LEVEL FROM SHALLOW CONVECTION (G3, GF only)"     ""
+state  integer  ktop_shallow   ij   misc    1   -     rh023     "KTOP_SHALLOW"   "KTOP LEVEL FROM SHALLOW CONVECTION (G3, GF only)"      ""
+state  integer  ierr_shallow   ij   misc    1   -     h023     "IERR_SHALLOW"   "CODE FOR TURNING OFF SHALLOW CU AT A PT(GF only)"      ""
 
 # upward and downward clearsky and total diagnostic fluxes for radiation (RRTMG)
 state    real  ACSWUPT          ij      misc        1         -      rhdu     "ACSWUPT"               "ACCUMULATED UPWELLING SHORTWAVE FLUX AT TOP"          "J m-2"
