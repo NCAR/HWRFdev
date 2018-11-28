@@ -6,7 +6,7 @@ use module_gfs_physcons, g => con_g,                           &
                          cp => con_cp,                         &
                          xlv => con_hvap,                      &
                          r_v => con_rv
-use module_cu_gf_deep, only: cup_gf,neg_check,autoconv,aeroevap
+use module_cu_gf_deep, only: cu_gf_deep,neg_check,autoconv,aeroevap
 use module_cu_gf_sh, only: cup_gf_sh
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -22,8 +22,6 @@ use module_cu_gf_sh, only: cup_gf_sh
 !     experimental. While the smooth transition part is turned !
 !     on, nd has been tested dow to a resolution of about 3km  !
 !     the aerosol coupling is turned off.                      !
-!     More clean-up as well as a direct coupling to chemistry  !
-!     will follow for V3.5.1                                   !
 !                                                              !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
@@ -78,12 +76,10 @@ CONTAINS
    IMPLICIT NONE
       integer, parameter :: ideep=1
       integer, parameter :: imid_gf=0
-      integer, parameter :: ichoicem=0  ! 0 1 2 8 11 GG
-      integer, parameter :: ichoice_s=0 ! 0 1 2 3
-      integer, parameter :: dicycle=1 !- diurnal cycle flag
-      integer, parameter :: dicycle_m=0 !- diurnal cycle flag
-      integer, parameter :: num_chem=1
-      integer, parameter :: nchem=max(1,num_chem-1)
+      integer, parameter :: ichoicem=13  ! 0 2 5 13
+      integer, parameter :: ichoice_s=3  ! 0 1 2 3
+      integer, parameter :: dicycle=0    !- diurnal cycle flag
+      integer, parameter :: dicycle_m=0  !- diurnal cycle flag,mid
       real, parameter :: aodccn=0.1
 !-------------------------------------------------------------
    INTEGER,      INTENT(IN   ) ::                               &
@@ -215,12 +211,6 @@ CONTAINS
         pret, prets,pretm,ter11, aa0, xlandi
      real,    dimension (its:ite)         ::                    &
         hfxi,qfxi,dxi
-     real,    dimension (its:ite,kts:kte,nchem) ::         &   
-!       real,    dimension (its:ite,kts:kte,num_chem-1) ::         &
-        chem_loc,outc,outcs,outcm,chem_pwdout,chem_pwout
-! scavenging coefficients
-     real,    dimension (nchem) ::  alpha_sc
-!     real,    dimension (num_chem-1) ::  alpha_sc
 !+lxz
      integer, dimension (its:ite) ::                            &
         ierr,ierrs,ierrm
@@ -265,7 +255,9 @@ CONTAINS
      integer, dimension (its:ite) :: cactiv
      real,    dimension (its:ite,kts:kte) ::  qcheck
 
-
+! New - Nov 2018
+     real, parameter :: tf=243.16, tcr=270.16, tcrf=1.0/(tcr-tf)
+     real  :: qtem, tem1
 
 
    tcrit=258.
@@ -274,6 +266,12 @@ CONTAINS
    rand_mom(:)    = 0.
    rand_vmas(:)   = 0.
    rand_clos(:,:) = 0.
+
+   edt(:)=0.
+   edtm(:)=0.
+   edtd(:)=0.
+   dhdt(:,:) = 0.
+
 
    IF ( periodic_x ) THEN
       ibegc=max(its,ids)
@@ -339,13 +337,6 @@ CONTAINS
 
      DO 100 J = jts,jtf
   
-     OUTCS(:,:,:)=0.
-     OUTCM(:,:,:)=0.
-     OUTC(:,:,:)=0.
-     chem_pwdout(:,:,:)=0.
-     chem_pwout(:,:,:)=0.
-     chem_loc(:,:,:)=0.
-
      if (spp_conv==1) then
       DO I= its,itf
 ! Stochastic
@@ -411,16 +402,16 @@ CONTAINS
 
         mconv(i)=0.
         ccn(i)=150.
-        edtm(i)=0. ! Jaymes
-        edtd(i)=0. ! Jaymes
-
-     ENDDO
-     DO I= its,itf
-        mconv(i)=0.
      ENDDO
      do k=kts,kte
      DO I= its,itf
          omeg(i,k)=0.
+         zu(i,k)=0.
+         zum(i,k)=0.
+         zus(i,k)=0.
+         zd(i,k)=0.
+         zdm(i,k)=0.
+         zdd(i,k)=0.
      ENDDO
      ENDDO
 
@@ -429,13 +420,14 @@ CONTAINS
 
 #if (HWRF == 1)
      DO I=ITS,ITF
-        dxi(i)=(dy*dy+dx2d(i,j)*dx2d(i,j))**0.5
+        dxi(i)=sqrt(2.*dy*dx2d(i,j))   ! area = dx*dy*2 for NMM
      ENDDO
 #else
      DO I=ITS,ITF
         dxi(i)=dx
      ENDDO
 #endif
+
      DO I=ITS,ITF
 !         dxi(i)=dx
          PSUR(I)=p8w(I,1,J)*.01
@@ -487,10 +479,6 @@ CONTAINS
          cupclw(i,k) = 0.
          cupclwm(i,k) = 0.
          qcheck(i,k) = 0.
-         zum(i,k) = 0. ! Jaymes
-         zdm(i,k) = 0. ! Jaymes
-         zdd(i,k) = 0. ! Jaymes
-         zd(i,k) = 0. ! Jaymes
      ENDDO
      ENDDO
 #if (NMM_CORE==1)
@@ -571,14 +559,14 @@ CONTAINS
            if(xmbs(i).le.0.)cutens(i)=0.
           enddo
           CALL neg_check('shallow',ipr,dt,q2d,outqs,outts,outus,outvs,   &
-                         outqcs,outcs,prets,its,ite,kts,kte,itf,ktf,num_chem-1,ktops)
+                         outqcs,prets,its,ite,kts,kte,itf,ktf,ktops)
 
         endif
 ! Mid-level convection
 
    if(imid_gf == 1)then
 
-      call cup_gf(        &
+      call cu_gf_deep(        &
                itf,ktf,its,ite, kts,kte  &
 
               ,dicycle_m       &
@@ -645,9 +633,8 @@ CONTAINS
 #if ( WRF_DFI_RADAR == 1 )
               ,do_capsuppress,cap_suppress_j &
 #endif
-              ,alpha_sc,chem_loc,chem_pwdout,chem_pwout,outcm,num_chem-1  &
               ,k22m          &   
-              ,jminm)
+              ,jminm )
 
             DO I=its,itf
             DO K=kts,ktf
@@ -655,7 +642,7 @@ CONTAINS
             enddo
             enddo
       CALL neg_check('mid',ipr,dt,qcheck,outqm,outtm,outum,outvm,   &   
-                     outqcm,outcm,pretm,its,ite,kts,kte,itf,ktf,num_chem-1,ktopm)
+                     outqcm,pretm,its,ite,kts,kte,itf,ktf,ktopm)
     endif
 
 #if ( WRF_DFI_RADAR == 1 )
@@ -666,7 +653,7 @@ CONTAINS
       endif
 #endif
    if(ideep.eq.1)then
-      call cup_gf(        &
+      call cu_gf_deep(        &
                itf,ktf,its,ite, kts,kte  &
 
               ,dicycle       &
@@ -733,9 +720,8 @@ CONTAINS
 #if ( WRF_DFI_RADAR == 1 )
               ,do_capsuppress,cap_suppress_j &
 #endif
-              ,alpha_sc,chem_loc,chem_pwdout,chem_pwout,outc,num_chem-1  &
               ,k22          &
-              ,jmin)
+              ,jmin )
 
         jpr=0
         ipr=0
@@ -745,7 +731,7 @@ CONTAINS
             enddo
             enddo
       CALL neg_check('deep',ipr,dt,qcheck,outq,outt,outu,outv,   &
-                      outqc,outc,pret,its,ite,kts,kte,itf,ktf,num_chem-1,ktop)
+                      outqc,pret,its,ite,kts,kte,itf,ktf,ktop)
 !
       endif
             if(j.lt.jbegc.or.j.gt.jendc)go to 100
@@ -827,8 +813,11 @@ CONTAINS
             IF(PRESENT(RQCCUTEN)) THEN
                 DO K=kts,ktf
                 DO I=ibegc,iendc
-                   RQCCUTEN(I,K,J)=outqcm(i,k)+outqcs(i,k)+outqc(I,K)*cuten(i)
-                   IF ( PRESENT( GDC ) ) GDC(I,K,J)=cupclwm(i,k)+cupclws(i,k)+CUPCLW(I,K)*cuten(i)
+                   RQCCUTEN(I,K,J)=outqcm(i,k)*cutenm(i) +outqcs(i,k)*cutens(i) &
+                                 + outqc(I,K)*cuten(i)
+                   IF ( PRESENT( GDC ) ) GDC(I,K,J)=cupclwm(i,k)*cutenm(i) &
+                                                   +cupclws(i,k)*cutens(i) &
+                                                   +CUPCLW(I,K)*cuten(i)
                    IF ( PRESENT( GDC2 ) ) GDC2(I,K,J)=0.
                 ENDDO
                 ENDDO
@@ -837,15 +826,18 @@ CONTAINS
             IF(PRESENT(RQICUTEN).AND.PRESENT(RQCCUTEN))THEN
                 DO K=kts,ktf
                   DO I=ibegc,iendc
-                   if(t2d(i,k).lt.258.)then
-                      RQICUTEN(I,K,J)=outqcm(i,k)+outqcs(i,k)+outqc(I,K)*cuten(i)
-                      RQCCUTEN(I,K,J)=0.
-                      IF ( PRESENT( GDC2 ) ) GDC2(I,K,J)=cupclwm(i,k)+cupclws(i,k)+CUPCLW(I,K)*cuten(i)
-                   else
-                      RQICUTEN(I,K,J)=0.
-                      RQCCUTEN(I,K,J)=outqcm(i,k)+outqcs(i,k)+outqc(I,K)*cuten(i)
-                      IF ( PRESENT( GDC ) ) GDC(I,K,J)=cupclwm(i,k)+cupclws(i,k)+CUPCLW(I,K)*cuten(i)
-                   endif
+                   t2d(i,k) = t2d(i,k) + rthcuten(i,k,j)*dt*pi(i,k,j)
+                   tem1 = max(0.0, min(1.0, (tcr-t2d(i,k))*tcrf)) ! fraction ice
+                   qtem = outqcm(i,k)*cutenm(i) + outqcs(i,k)*cutens(i) + &
+                          outqc(I,K)*cuten(i)
+                   RQICUTEN(I,K,J) = qtem * tem1
+                   RQCCUTEN(I,K,J) = qtem * (1.- tem1)
+                   IF (PRESENT(GDC2)) GDC2(I,K,J)=(cupclwm(i,k)*cutenm(i) &
+                                                  +cupclws(i,k)*cutens(i) &
+                                                  +cupclw(i,k)*cuten(i))*tem1
+                   IF (PRESENT(GDC)) GDC(I,K,J)=(cupclwm(i,k)*cutenm(i) &
+                                                +cupclws(i,k)*cutens(i) &
+                                                +cupclw(i,k)*cuten(i))*(1.-tem1)
                 ENDDO
                 ENDDO
             ENDIF
