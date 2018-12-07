@@ -3659,7 +3659,7 @@ endif
 !
             do k=kbcon(i)+1,ktop(i)
                c0=.004
-               if(t(i,k).lt.270.)c0=.002
+!               if(t(i,k).lt.270.)c0=.002
                if(t(i,k) > 273.16) then
                   c0t = c0
                else
