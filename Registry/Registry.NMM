@@ -347,7 +347,7 @@ state  real   eta2      k      dyn_nmm     1      Z      i01rh0123   "ETA2"    "
 state  real   em        q      dyn_nmm     1      -      ir
 state  real   emt       q      dyn_nmm     1      -      ir
 #for HWRF: add to restart
-state  real   adt       ij     dyn_nmm     1      -      r       "ADT"     "Change of T due to advection"                  "K"
+state  real   adt       ij     dyn_nmm     1      -      rh023   "ADT"     "Change of T due to advection"                  "K"
 state  real   adu       ij     dyn_nmm     1      -      r       "ADU"     "Change of U due to advection"                  "m s-1"
 state  real   adv       ij     dyn_nmm     1      -      r       "ADV"     "Change of V due to advection"                  "m s-1"
 #end HWRF:
@@ -406,8 +406,8 @@ state  real   zsig1     ij    dyn_nmm   1    -     irh023      "ZSIG1"       "He
 state  real   ulowl     ij    dyn_nmm   1    -     irh023      "ULOWL"       "U at Lowest Level"         "m s-1"
 state  real   vlowl     ij    dyn_nmm   1    -     irh023      "VLOWL"       "V at Lowest Level"         "m s-1"
 state  real     rc2d    ij    dyn_nmm   1    -       h        "RC2D"     "critical Richardson number" "m"
-state  real   dku3d    ijk    dyn_nmm   1    -      rh      "DKU3D"     "Momentum Diffusivity" "m*m/s"
-state  real   dkt3d    ijk    dyn_nmm   1    -      rh      "DKT3D"     "Thermal Diffusivity" "m*m/s"
+state  real   dku3d    ijk    dyn_nmm   1    -     rh023      "DKU3D"     "Momentum Diffusivity" "m*m/s"
+state  real   dkt3d    ijk    dyn_nmm   1    -     rh023      "DKT3D"     "Thermal Diffusivity" "m*m/s"
 
 state  real   SCALEFUN  ij    dyn_nmm   1    -     rh023       "SCALEFUN"  "CNV Mass Scale function(0-1)"        " "
 state  real   SCALEFUN1 ij    dyn_nmm   1    -     rh       "SCALEFUN1"  "CNV Mass Scale function 1(0-1)"        " "
@@ -1057,8 +1057,8 @@ state    real  NOAHRES          ij      misc        1         -     rh        "N
 
 state    real   tke_pbl         ijk     misc        1         Z     r         "TKE_PBL"               "TKE FROM PBL SCHEME"     "m2 s-2"
 state    real   el_pbl          ikj     misc        1         Z     -         "EL_PBL"                "MIXING LENGTH FROM PBL SCHEME"     "m"
-state    real   EXCH_H         ikj     misc        1         Z     r         "EXCH_H"               "EXCHANGE COEFFICIENTS FOR HEAT"               "m2 s-1"
-state    real   EXCH_M         ikj     misc        1         Z     r         "EXCH_M"               "EXCHANGE COEFFICIENTS FOR MOMENTUM"           "m2 s-1"
+state    real   EXCH_H         ikj     misc        1         Z     rh023         "EXCH_H"               "EXCHANGE COEFFICIENTS FOR HEAT"               "m2 s-1"
+state    real   EXCH_M         ikj     misc        1         Z     rh023         "EXCH_M"               "EXCHANGE COEFFICIENTS FOR MOMENTUM"           "m2 s-1"
 state   real   THZ0             ij     misc        1         -     irh023d=(DownCopy)       "THZ0"                  "POT. TEMPERATURE AT TOP OF VISC. SUBLYR"                 "K"
 state   real   QZ0              ij     misc        1         -     irh023d=(DownCopy)       "QZ0"                   "SPECIFIC HUMIDITY AT TOP OF VISC. SUBLYR"                     "kg kg-1"
 state   real   UZ0              ij     misc        1         -     irh023d=(DownVel)       "UZ0"                   "U WIND COMPONENT AT TOP OF VISC. SUBLYR"                      "m s-1"
