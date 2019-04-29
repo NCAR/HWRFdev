@@ -1,5 +1,7 @@
       MODULE ATM_cc
 
+!   30-03-2018 Biju - Handles multiple storms
+
       USE CMP_COMM, ONLY: &
 
      &   MPI_COMM_Atmos => COMM_local, &
@@ -16,7 +18,7 @@
 
       implicit none
 
-      integer,parameter:: ND=3
+      integer,parameter:: ND=17   !BT Max 8 storms
       integer Ocean_spec /-1/, WM_id /-10/
       integer NSF
       integer NSF_WM
@@ -38,7 +40,8 @@
       integer MPI_kind_R, &
      &MPI_kind_sfcflux,MPI_kind_SST,MPI_kind_SLM,MPI_kind_lonlat
       INTEGER :: MPI_kind_cur, MPI_kind_wstate, MPI_kind_windp
-      integer n_ts(ND) /0,0,0/, gid
+      integer gid
+      integer, dimension(ND) ::  n_ts = 0
       integer rc /5/
       real,parameter:: &
      &   SLM_OS_value=1., & !<-must be real open sea mask value in AM
@@ -87,6 +90,16 @@
      &        ia2w /1/, &
      &        iw2a /0/
 
+! Define domains active in coupling                      !BT
+!      logical cpl_gids(ND) /.true.,.true.,.false.,.true.,.false.,   &
+!     &                      .true.,.false.,.true.,.false.,          &
+!     &                      .true.,.false.,.true.,.false.,          &
+!     &                      .true.,.false.,.true.,.false./
+      
+      logical cpl_gids(ND) /.true.,.false.,.false.,.false.,.false.,   &
+     &                      .false.,.false.,.false.,.false.,          &
+     &                      .false.,.false.,.false.,.false.,          &
+     &                      .false.,.false.,.false.,.false./
       SAVE
 
       END MODULE ATM_cc
@@ -311,7 +324,9 @@
       real(kind=kind_SLM),dimension(ims_:ime_,jms_:jme_):: SLM
       integer i_parent_start,j_parent_start
 
-      integer KDT,buf(2) /0,0/
+      integer KDT
+      integer, dimension(nd,2) :: buf = 0
+      integer n, gidprod
       character*24 s
       character*80 s1
       character*255 message
@@ -319,8 +334,12 @@
 !C
 
       gid=gid_
-      call GLOB_ABORT((gid-1)*(gid-2)*(gid-3), &
-     &'Abort: in ATM_TSTEP_INIT gid is neither 1 nor 2 nor 3',rc)
+      gidprod = 1
+      do n = 1, nd
+         gidprod = gidprod* (gid-n)
+      enddo
+      call GLOB_ABORT(gidprod, 'Abort: in ATM_TSTEP_INIT gid is   &
+     &neither 1, 2, 3, ...,ND=17' ,rc) 
       KDT=NTSD/NPHS+1
       PHYS=MOD(NTSD,NPHS).eq.0 ! .and. gid.eq.1 <-removed to bring MG in
       dta=dta_ 
@@ -343,7 +362,7 @@
       end if
 
       n_ts(gid)=n_ts(gid)+1  ! init. value must be 0   ***0***
-      write(s,'(2i8)') KDT,n_ts(gid)
+      write(s,'(3i8)') KDT,n_ts(gid),gid
       write(sgid,'(" grid id = ",i1)') gid
       call ATM_ANNOUNCE('ATM_TSTEP_INIT working:'// &
      &sgid//'; KDT, n_ts: '//s,3)
@@ -388,7 +407,7 @@
 
       call ATM_ANNOUNCE('ATM_TSTEP_INIT to allocate sf, SST_cc',3)
 
-      IF (gid.le.2) THEN !** innermost grid not active in coupling **
+      IF ( cpl_gids(gid) ) THEN
         allocate(sf(gid)%a(ims:ime,jms:jme,NSF))
         ALLOCATE(wwinp(gid)%a(ims:ime,jms:jme,NSF_WM))
       END IF !** innermost grid not active in coupling **
@@ -398,23 +417,24 @@
 
       END IF
 
-      if (gid.eq.2) then
+      IF ( gid > 1 .AND. cpl_gids(gid) ) THEN
         write(s,'(2i8)') i_parent_start,j_parent_start
         if (zeroSF) then
-          buf(1)=i_parent_start
-          buf(2)=j_parent_start
-          call CMP_INTEGER_SEND(buf,2)
+          buf(gid,1)=i_parent_start
+          buf(gid,2)=j_parent_start
+          call CMP_INTEGER_SEND(buf(gid,:),2)
           call ATM_ANNOUNCE( &
      &    'ATM_TSTEP_INIT: i_parent_start, j_parent_start sent '//s,3)
         else
-          call GLOB_ABORT(abs(i_parent_start-buf(1))+abs(j_parent_start- &
-     &    buf(2)),'NESTED GRID MOVED DURING C TIME STEP: ABORTED '// &
-     &    s,rc)
+          write(s1,'(7i8)')i_parent_start,j_parent_start,buf(gid,1), &
+     &    buf(gid,2),gid,NTSD, n_ts(gid)
+          call GLOB_ABORT(abs(i_parent_start-buf(gid,1))+abs(j_parent_start- &
+     &    buf(gid, 2)),'NESTED GRID MOVED DURING C TIME STEP: ABORTED '// &
+     &    s1,rc)
         end if
       end if
 
-      IF (gid.le.2) THEN !** innermost grid not active in coupling **
-
+      IF ( cpl_gids(gid) ) THEN
       CALL ATM_SENDGRIDS(HLON,HLAT,VLON,VLAT)
 
       CALL ATM_SENDSLM(SLM)
@@ -517,7 +537,7 @@
 
       IF (.not.PHYS .or. n_ts(gid).ne.1) RETURN
 
-      IF (gid.gt.2) RETURN ! innermost grid's dim. / coor. are not sent
+      IF ( .NOT. cpl_gids(gid) ) RETURN
       
 !temporarily excluded      if (Coupler_id.lt.0) return    !   <- standalone mode
 
@@ -576,7 +596,7 @@
 !c     IF (gid.ne.1) RETURN  !  only "parent grid" mask is sent
       IF (.not.PHYS .or. n_ts(gid).ne.1) RETURN
 
-      IF (gid.gt.2) RETURN ! innermost grid's mask is not sent
+      IF ( .NOT. cpl_gids(gid) ) RETURN
       
 !temporarily excluded      if (Coupler_id.lt.0) return    !   <- standalone mode
 
@@ -612,8 +632,8 @@
 
       IF (.not.PHYS) RETURN
 
-      IF (gid.gt.2) RETURN ! nothing is done to get innermost grid's
                            ! SST ** IN THIS PRELIMINARY VERSION **
+      IF ( .NOT. cpl_gids(gid) ) RETURN
 
       call ATM_ANNOUNCE('ATM_GETSST entered (PHYS=.true.)',3)
 
@@ -680,7 +700,7 @@
       IF ( ia2o .LT. 1 .and. ia2w .LT. 1 ) RETURN
       IF (.not.PHYS) RETURN
 
-      IF (gid.gt.2) RETURN
+      IF ( .NOT. cpl_gids(gid) ) RETURN
 
 ! Debug insertion:->
 !c     if (PREC(ims+3,jms+3).ne.0 .or. PREC(ims+5,jms+5).ne.0) then
@@ -761,7 +781,7 @@
       IF ( ia2o .LT. 1 .and. ia2w .LT. 1 ) RETURN
       if (.not.PHYS) RETURN
 
-      IF (gid.gt.2) RETURN
+      IF ( .NOT. cpl_gids(gid) ) RETURN
 
       if (.not.sendSF) then
         call ATM_ANNOUNCE( &
@@ -821,7 +841,7 @@ SUBROUTINE atm_getcur(ucur,vcur)
    LOGICAL :: getcur
 
       IF ( io2a .LT. 2 ) RETURN
-   IF (.NOT. phys .OR. gid > 2) RETURN
+   IF ( .NOT. phys .OR. .NOT. cpl_gids(gid) ) RETURN
    IF (ocean_spec /= 1) CALL atm_announce('Warn: ocean currents needed',3)
    CALL atm_announce('atm_getcur entered (phys = .true.)',3)
    
@@ -886,7 +906,7 @@ SUBROUTINE atm_getwstate(alpha,gamma)
 
       IF ( iw2a .LT. 1 ) RETURN
    IF (wm_id <= 0)  RETURN
-   IF (.NOT. phys .OR. gid > 2) RETURN
+   IF ( .NOT. phys .OR. .NOT. cpl_gids(gid) ) RETURN
    CALL atm_announce('atm_getstate entered (phys = .true.)',3)
 
    getwstate = ((n_ts(gid)-1)/i_dtc2dta)*i_dtc2dta == n_ts(gid)-1
@@ -940,8 +960,7 @@ SUBROUTINE atm_prepwindp(ulowl, vlowl, richn, zlowl)
                                                           richn, zlowl
       IF ( ia2w .LT. 1 ) RETURN
    IF (wm_id <= 0)  RETURN
-   IF (.NOT. phys .OR. gid > 2) RETURN
-
+   IF ( .NOT. phys .OR. .NOT. cpl_gids(gid) ) RETURN
    CALL atm_announce('atm_atm_prepwindp: entered',3)
 
    IF (zerosf) wwinp(gid)%a = 0.0
@@ -980,8 +999,7 @@ SUBROUTINE atm_sendwindp
 
       IF ( ia2w .LT. 1 ) RETURN
    IF (wm_id <= 0)  RETURN
-   IF (.NOT. phys .OR. gid > 2) RETURN
- 
+   IF ( .NOT. phys .OR. .NOT. cpl_gids(gid) ) RETURN
    IF (.NOT. sendsf) THEN
       CALL atm_announce('atm_sendwindp entered with PHYS but not sendSF: returning'// &
       sgid,3)
