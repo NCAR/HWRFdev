@@ -195,6 +195,7 @@
       REAL,ALLOCATABLE,DIMENSION(:) :: SFULL,SMID
       REAL,ALLOCATABLE,DIMENSION(:) :: DZS,ZS
       REAL,ALLOCATABLE,DIMENSION(:,:,:) :: RQCBLTEN,RQIBLTEN            &
+     &                                    ,RQNIBLTEN                     & ! RGF
      &                                    ,RQVBLTEN,RTHBLTEN            &
      &                                    ,RUBLTEN,RVBLTEN              &
      &                                    ,RQCCUTEN,RQICUTEN,RQRCUTEN   &
@@ -253,7 +254,6 @@
 #if ( HWRF == 1 )
       REAL :: xshift,xfar,yfar,dfar,close2edge
       REAL :: fedge,fmid,fdiff
-      REAL :: parent_CLAT,parent_CLON  ! Gus doing
 #endif
 
 ! z0base new
@@ -280,7 +280,9 @@
 
 #if ( HWRF == 1 )
       call clear_ij_halos(grid,config_flags%halo_debug)
-      if(grid%id > 1) then      !Biju doing 
+      !Biju Thomas & Gus Alaka's doing for ocean coupling to D01 only.
+      !if(grid%id==3) then
+      if(grid%id > 1) then
          grid%force_sst=1
       else
          grid%force_sst=2
@@ -340,12 +342,13 @@
          call nl_get_dy(grid%id,tempdy)
          grid%wbd0var = -(IDE-2)*tempdx
          grid%sbd0var = -((JDE-1)/2)*tempdy
-#if ! ( NMM_NEST == 1 )
+! for single-domainn HWRF, these need to be updated (even if compiled with NMM_NEST=1)
+!#if ! ( NMM_NEST == 1 )
          ! When NMM is compiled without nesting support, we need to
          ! update the bound metadata here:
          grid%wbd0 = grid%wbd0var
          grid%sbd0 = grid%sbd0var
-#endif
+!#endif
       endif has_parent
       if(tempdx<1e-5 .or. tempdy<1e-5) then
          ! Should never reach here unless someone adds a bug to NMM.
@@ -1970,6 +1973,7 @@
       ALLOCATE(DZS(KMS:KME),STAT=I)                         ; DZS = 0.
       ALLOCATE(RQCBLTEN(IMS:IME,KMS:KME,JMS:JME),STAT=I)    ; RQCBLTEN = 0.
       ALLOCATE(RQIBLTEN(IMS:IME,KMS:KME,JMS:JME),STAT=I)    ; RQIBLTEN = 0.
+      ALLOCATE(RQNIBLTEN(IMS:IME,KMS:KME,JMS:JME),STAT=I)    ; RQNIBLTEN = 0. ! RGF
       ALLOCATE(RQVBLTEN(IMS:IME,KMS:KME,JMS:JME),STAT=I)    ; RQVBLTEN =  0.
       ALLOCATE(RTHBLTEN(IMS:IME,KMS:KME,JMS:JME),STAT=I)    ; RTHBLTEN =  0.
       ALLOCATE(RUBLTEN(IMS:IME,KMS:KME,JMS:JME),STAT=I)     ; RUBLTEN = 0.
@@ -2168,28 +2172,6 @@
          call wrf_debug(1,'Set E grid locations for PHY_INIT.')
          if(grid%id==1) then
             call med_set_egrid_locs(grid,grid)
-
-            if(model_config_rec%max_dom==1)then      ! Gus doing
-!
-            CALL nl_get_cen_lat(grid%id, parent_CLAT)    !-- CEN_LAT in deg
-            CALL nl_get_cen_lon(grid%id, parent_CLON)    !-- CEN_LON in deg
-!
-
-            grid%wbd0 = -(IDE-2)*grid%dx     ! WBD0: in degrees;factor 2 takes care of dummy last column
-            grid%sbd0 = -((JDE-1)/2)*grid%dy ! SBD0: in degrees; note that JDE-1 should be odd
-
-
-            WRITE(0,*)'Gus Change',parent_CLAT,parent_CLON,grid%dx,grid%dy,grid%wbd0,grid%sbd0
-
-            CALL EARTH_LATLON ( grid%HLAT,grid%HLON,grid%VLAT,grid%VLON,  & !output
-                                grid%dx,grid%dy,grid%wbd0,grid%sbd0,      & !inputs
-                                parent_CLAT,parent_CLON,                  &
-                                IDS,IDE,JDS,JDE,KDS,KDE,                  &
-                                IMS,IME,JMS,JME,KMS,KME,                  &
-                                ITS,ITE,JTS,JTE,KTS,KTE                   )
-
-            endif
-!
          else
             call med_set_egrid_locs(grid%parents(1)%ptr,grid)
          endif
@@ -2203,12 +2185,12 @@
      &             ,RQVSHTEN, RQRSHTEN, RQCSHTEN                        &
      &             ,RQSSHTEN, RQISHTEN, RQGSHTEN                        &
      &             ,RUBLTEN,RVBLTEN,RTHBLTEN                            &
-     &             ,RQVBLTEN,RQCBLTEN,RQIBLTEN                          &
+     &             ,RQVBLTEN,RQCBLTEN,RQIBLTEN, RQNIBLTEN                         & ! RGF mod
      &             ,RTHRATEN,RTHRATENLW,RTHRATENSW                      &
      &             ,STEPBL,STEPRA,STEPCU                                &
      &             ,grid%w0avg, RAINNC, RAINC, grid%raincv, RAINNCV               &
      &             ,SNOWNC, SNOWNCV, GRAUPELNC, GRAUPELNCV              &
-     &             ,z_at_q, grid%qnwfa2d                                &
+     &             ,z_at_q, rri, grid%qnwfa2d                           &
 !     &             ,scalar_trans(ims,kms,jms,1),num_scalar              &
      &             ,scalar_trans,num_scalar              &
      &             ,grid%re_cloud, grid%re_ice, grid%re_snow            & ! G. Thompson
@@ -2265,6 +2247,8 @@
      &                T2MVXY=grid%T2MVXY, T2MBXY=grid%T2MBXY, CHSTARXY=grid%CHSTARXY,    & ! Optional Noah-MP
      &                smoiseq=grid%smoiseq, smcwtdxy=grid%smcwtdxy, rechxy=grid%rechxy,   &
      &                deeprechxy=grid%deeprechxy,                                         &
+     &                iopt_crop=config_flags%opt_crop,                                                    &
+     &                gecros_state=grid%gecros_state,                                                        &   ! Optional gecros crop
      &                lakedepth2d=grid%lakedepth2d,  savedtke12d=grid%savedtke12d,  snowdp2d=grid%snowdp2d,   h2osno2d=grid%h2osno2d,               & !lake
      &                snl2d= grid%snl2d, t_grnd2d=grid%t_grnd2d, t_lake3d=grid%t_lake3d, lake_icefrac3d=grid%lake_icefrac3d,                        & !lake
      &                z_lake3d=grid%z_lake3d, dz_lake3d=grid%dz_lake3d, t_soisno3d=grid%t_soisno3d, h2osoi_ice3d=grid%h2osoi_ice3d,                 & !lake
@@ -2552,6 +2536,7 @@
       DEALLOCATE(RAINNCV)
       DEALLOCATE(RQCBLTEN)
       DEALLOCATE(RQIBLTEN)
+      DEALLOCATE(RQNIBLTEN) ! RGF
       DEALLOCATE(RQVBLTEN)
       DEALLOCATE(RTHBLTEN)
       DEALLOCATE(RUBLTEN)
