@@ -2302,14 +2302,16 @@ integer myproc
    USE module_sf_lake
    USE module_bl_mfshconvpbl
    USE module_bl_gbmpbl
+   USE module_bl_mynn ! RGF moved
+   USE module_sf_mynn ! RGF moved
 #if ( EM_CORE == 1 )
-   USE module_bl_mynn
+!   USE module_bl_mynn ! RGF
    USE module_bl_temf
 #if ( WRFPLUS == 1 )
    USE module_bl_surface_drag
 #endif
    USE module_sf_temfsfclay
-   USE module_sf_mynn
+!   USE module_sf_mynn ! RGF
 #endif
 
 #if (NMM_CORE == 1)
@@ -2668,10 +2670,10 @@ integer myproc
 ! End of Noah-mosaic related variables 
 !-------------------------------------------------  
 
-#if ( EM_CORE == 1 )
+! RGF removed wrapper
 !local mynn 
    INTEGER :: mynn_closure_level
-#endif
+! RGF removed wrapper end
 
   if ( config_flags%fractional_seaice == 0 ) then
      xice_threshold = 0.5
@@ -2778,15 +2780,16 @@ integer myproc
            isfc = 2
 #endif
 
-#if ( EM_CORE == 1 )
-!mynn 
 
+!mynn 
+! RGF moved wrapper to below
         CASE (MYNNSFCSCHEME)
 
            CALL mynn_sf_init_driver(allowed_to_read)
            isfc=5
 !          isfc=3
 
+#if ( EM_CORE == 1 )
       CASE (TEMFSFCSCHEME)
            CALL wrf_debug( 100, 'calling temfsfclayinit' )
            CALL temfsfclayinit( restart, allowed_to_read ,        &
@@ -3302,10 +3305,10 @@ CALL lsm_mosaic_init(IVGTYP,config_flags%ISWATER,config_flags%ISURBAN,config_fla
                 its, ite, jts, jte, kts, kte                           )
 #endif
 
-#if ( EM_CORE == 1 )
+
 
 !mynn 
-           
+! RGF moved wrapper to below           
         CASE (MYNNPBLSCHEME2, MYNNPBLSCHEME3)
            IF(isfc .NE. 5 .AND. isfc .NE. 1 .AND. isfc .NE. 2) CALL wrf_error_fatal &
                 ( 'module_physics_init: use mynnsfc or sfclay or myjsfc scheme for this pbl option')
@@ -3335,6 +3338,7 @@ CALL lsm_mosaic_init(IVGTYP,config_flags%ISWATER,config_flags%ISURBAN,config_fla
                 &,IMS,IME,JMS,JME,KMS,KME                    &
                 &,ITS,ITE,JTS,JTE,KTS,KTE)
 
+#if ( EM_CORE == 1 )
       CASE (TEMFPBLSCHEME)
            ! if(isfc .ne. 0)CALL wrf_error_fatal &
            !  ( 'module_physics_init: use sfclay scheme = 0 for this pbl option' )

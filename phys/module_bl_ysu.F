@@ -25,13 +25,16 @@ contains
                   znu,znw,p_top,                                               &
                   znt,ust,hpbl,psim,psih,                                      &
                   xland,hfx,qfx,wspd,br,                                       &
+                  gz1oz0, sfclay,                                              & ! RGF
                   dt,kpbl2d,                                                   &
-                  exch_h,                                                      &
+                  exch_h, exch_m,                                              & ! RGF
+               !   exch_h,                                                      &
                   wstar,delta,                                                 &
                   u10,v10,                                                     &
                   uoce,voce,                                                   &
                   rthraten,ysu_topdown_pblmix,                                 &
                   ctopo,ctopo2,                                                &
+                  DKU3D,DKT3D,    &    ! RGF
                   ids,ide, jds,jde, kds,kde,                                   &
                   ims,ime, jms,jme, kms,kme,                                   &
                   its,ite, jts,jte, kts,kte,                                   &
@@ -121,7 +124,7 @@ contains
                                      ims,ime, jms,jme, kms,kme,                &
                                      its,ite, jts,jte, kts,kte
 
-   integer,  intent(in)      ::      ysu_topdown_pblmix
+   integer,  intent(in)      ::      ysu_topdown_pblmix, sfclay ! RGF mod
 !
    real,     intent(in   )   ::      dt,cp,g,rovcp,rovg,rd,xlv,rv
 !
@@ -148,7 +151,7 @@ contains
                                                                      rqcblten
 !
    real,     dimension( ims:ime, kms:kme, jms:jme )                          , &
-             intent(inout)   ::                                        exch_h
+             intent(inout)   ::                               exch_h, exch_m ! RGF mod
    real,     dimension( ims:ime, jms:jme )                                   , &
              intent(inout)   ::                                         wstar
    real,     dimension( ims:ime, jms:jme )                                   , &
@@ -156,6 +159,9 @@ contains
    real,     dimension( ims:ime, jms:jme )                                   , &
              intent(inout)   ::                                           u10, &
                                                                           v10
+
+      REAL,  DIMENSION(ims:ime, jms:jme, kms:kme), INTENT(OUT) :: DKU3D,DKT3D ! RGF
+
    real,     dimension( ims:ime, jms:jme )                                   , &
              intent(in   )   ::                                          uoce, &
                                                                          voce
@@ -165,7 +171,10 @@ contains
                                                                           hfx, &
                                                                           qfx, &
                                                                            br, &
-                                                                         psfc
+                                                                         psfc, & ! RGF mod
+                                                                        gz1oz0   ! RGF add
+
+
    real,     dimension( ims:ime, jms:jme )                                   , &
              intent(in   )   ::                                                &
                                                                          psim, &
@@ -217,6 +226,8 @@ contains
                                                                         dvsfc, &
                                                                         dtsfc, &
                                                                         dqsfc
+    real,     dimension( its:ite, kts:kte )  ::                      dku,dkt       ! RGF
+
    real,intent(in),dimension(ims:ime,kms:kme,jms:jme),optional:: rho
    real:: rho_d
    real,intent(out),dimension(ims:ime,kms:kme,jms:jme),optional:: kzhout,kzmout,kzqout
@@ -290,13 +301,15 @@ contains
               ,wspd=wspd(ims,j),br=br(ims,j)                                   &
               ,dusfc=dusfc,dvsfc=dvsfc,dtsfc=dtsfc,dqsfc=dqsfc                 &
               ,dt=dt,rcl=1.0,kpbl1d=kpbl2d(ims,j)                              &
-              ,exch_hx=exch_h(ims,kms,j)                                       &
+              ,exch_hx=exch_h(ims,kms,j),exch_mx=exch_m(ims,kms,j)            & ! RGF
               ,wstar=wstar(ims,j)                                              &
               ,delta=delta(ims,j)                                              &
               ,u10=u10(ims,j),v10=v10(ims,j)                                   &
+              ,xDKU=dku(its,kts),xDKT=dkt(its,kts)  & ! RGF
               ,uox=uoce(ims,j),vox=voce(ims,j)                                 &
               ,rthraten=rthraten(ims,kms,j),p2diORG=p3di(ims,kms,j)            &
               ,ysu_topdown_pblmix=ysu_topdown_pblmix                           &
+              ,gz1oz0=gz1oz0(ims,j),sfclay=sfclay                              & ! RGF
               ,ctopo=ctopo(ims,j),ctopo2=ctopo2(ims,j)                         &
 #if defined(mpas)
               ,kzh=kzhout(ims,kms,j)                                           &
@@ -316,6 +329,22 @@ contains
        enddo
      enddo
 !
+! RGF
+     DO i=its,ite
+     DO k=kts,kte
+      DKU3D(I,J,K) = 0.
+      DKT3D(I,J,K) = 0.
+     ENDDO
+     ENDDO
+
+     DO i=its,ite
+     DO k=kts,kte-1
+      DKU3D(I,J,K) = DKU(I,K)
+      DKT3D(I,J,K) = DKT(I,K)
+     ENDDO
+     ENDDO
+! end RGF
+
    enddo
 !
    end subroutine ysu
@@ -330,13 +359,15 @@ contains
                   xland,hfx,qfx,wspd,br,                                       &
                   dusfc,dvsfc,dtsfc,dqsfc,                                     &
                   dt,rcl,kpbl1d,                                               &
-                  exch_hx,                                                     &
+                  exch_hx, exch_mx,                                                    & ! RGF mod
                   wstar,delta,                                                 &
                   u10,v10,                                                     &
                   uox,vox,                                                     &
                   rthraten,p2diORG,                                            &
                   ysu_topdown_pblmix,                                          &
+                  gz1oz0, sfclay,                                              & ! RGF
                   ctopo,ctopo2,                                                &
+                  xDKU,xDKT,                                                   & ! RGF
                   ids,ide, jds,jde, kds,kde,                                   &
                   ims,ime, jms,jme, kms,kme,                                   &
                   its,ite, jts,jte, kts,kte,                                   &
@@ -424,7 +455,7 @@ contains
                                     its,ite, jts,jte, kts,kte,                 &
                                     j,ndiff
 
-   integer,  intent(in)      ::     ysu_topdown_pblmix 
+   integer,  intent(in)      ::     ysu_topdown_pblmix , sfclay ! RGF mod
 !
    real,     intent(in   )   ::     dt,rcl,cp,g,rovcp,rovg,rd,xlv,rv
 !
@@ -452,6 +483,9 @@ contains
 !
    real,     dimension( its:ite, kts:kte )                                   , &
              intent(in   )   ::                                           p2d
+
+   real,     dimension( its:ite, kts:kte )                                   , &
+             intent(inout)   ::                                     xdku,xdkt ! RGF
 !
    real,     dimension( ims:ime )                                            , &
              intent(inout)   ::                                           ust, &
@@ -467,6 +501,8 @@ contains
 !
    real,     dimension( ims:ime ), intent(in   )   ::                    psim, &
                                                                          psih
+
+   real,     dimension( ims:ime ), intent(in   )   ::                  gz1oz0 ! RGF
 !
    real,     dimension( ims:ime ), intent(in   )   ::                  psfcpa
    integer,  dimension( ims:ime ), intent(out  )   ::                  kpbl1d
@@ -523,9 +559,10 @@ contains
 !
 !jdf added exch_hx
 !
+
    real,    dimension( ims:ime, kms:kme )                                    , &
-            intent(inout)   ::                                        exch_hx
-!
+            intent(inout)   ::                                exch_hx,exch_mx ! RGF mod
+
    real,    dimension( ims:ime )                                             , &
             intent(inout)    ::                                           u10, &
                                                                           v10
@@ -578,6 +615,9 @@ contains
                dsdzu,dsdzv,wm3,dthx,dqx,wspd10,ross,tem1,dsig,tvcon,conpr,     &
                prfac,prfac2,phim8z,radsum,tmp1,templ,rvls,temps,ent_eff,    &
                rcldb,bruptmp,radflux,vconvlim,vconvnew,fluxc,vconvc,vconv
+
+   real fmtmp ! RGF
+
 !topo-corr
    real,    dimension( ims:ime, kms:kme )    ::                          fric, &
                                                                        tke_ysu,&
@@ -598,6 +638,13 @@ contains
    conw=1./g
    conwrc = conw*sqrt(rcl)
    conpr = bfac*karman*sfcfrac
+
+! RGF added
+   xdku = 0.
+   xdkt = 0.
+   exch_hx = 0.
+   exch_mx = 0.
+
 !
 !  k-start index for tracer diffusion
 !
@@ -778,8 +825,17 @@ contains
    enddo
 !
    do i = its,ite
-     fm = psim(i)
+! RGF start
+    !fm = psim(i)	! original lines
+    !fh = psih(i)
+    if(sfclay.ne.88)then ! RGF
+     fm = psim(i)   ! original code
      fh = psih(i)
+    else ! for gfdl sfc layer
+     fm = gz1oz0(i) - psim(i)
+     fh = gz1oz0(i) - psih(i)
+    endif 
+! end RGF
      zol1(i) = max(br(i)*fm*fm/fh,rimin)
      if(sfcflg(i))then
        zol1(i) = min(zol1(i),-zfmin)
@@ -801,6 +857,10 @@ contains
        wstar(i)  = 0.
        wstar3(i) = 0.
      endif
+! redo ust like gfs
+     if(sfclay.eq.88)then ! RGF
+      ust(i) = abs( karman*amax1(wspd1(i),0.01)/fm) ! like sfclayrev keeps ust from being too small
+     endif ! sfclay=88
      ust3(i)   = ust(i)**3.
      wscale(i) = (ust3(i)+phifac*karman*wstar3(i)*0.5)**h1
      wscale(i) = min(wscale(i),ust(i)*aphi16)
@@ -1201,6 +1261,7 @@ contains
        ad(i,k)   = ad(i,k)-au(i,k)
        ad(i,k+1) = 1.-al(i,k)
        exch_hx(i,k+1) = xkzh(i,k)
+       xdkt(i,k  ) = xkzh(i,k) ! RGF altered k+1 back to k
      enddo
    enddo
 !
@@ -1449,6 +1510,8 @@ contains
        al(i,k)   = -dtodsu*dsdz2
        ad(i,k)   = ad(i,k)-au(i,k)
        ad(i,k+1) = 1.-al(i,k)
+       xdku(i,k  ) = xkzm(i,k) ! RGF altered k+1 back to k
+       exch_mx(i,k+1) = xkzm(i,k) ! RGF
      enddo
    enddo
 !

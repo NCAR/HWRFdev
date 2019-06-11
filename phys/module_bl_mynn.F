@@ -1034,7 +1034,8 @@ CONTAINS
 
     END SELECT
 
-
+! RGF skip start
+#if (NMM_CORE != 1)
 !   Stochastic perturbations of turbulent mixing length
     if (spp_pbl==1) then
        DO k = kts+1,kte
@@ -1044,6 +1045,8 @@ CONTAINS
          endif
        END DO
     endif
+#endif
+! RGF skip end
 
 
 #ifdef HARDCODE_VERTICAL
@@ -1761,12 +1764,17 @@ CONTAINS
        END IF
 !
 !      Add stochastic perturbation of prandtl number limit
+! RGF skip start
+#if (NMM_CORE != 1)
        if (spp_pbl==1) then
           prlimit = MIN(MAX(1.,2.5 + 5.0*rstoch_col(k)), 10.)
           IF(sm(k) > sh(k)*Prlimit) THEN
              sm(k) = sh(k)*Prlimit
           ENDIF
        ENDIF
+#endif
+! RGF skip end
+
 !
        elq = el(k)*qkw(k)
        elh = elq*qdiv
@@ -3710,7 +3718,14 @@ ENDIF
                 dz1(k)=dz(i,k,j)
                 u1(k) = u(i,k,j)
                 v1(k) = v(i,k,j)
-                w1(k) = w(i,k,j)
+               ! w1(k) = w(i,k,j) ! original line
+! RGF - avoiding W problem in HWRF
+#if (HWRF==1)
+             w1(k) = 0.
+#else
+             w1(k) = w(i,k,j)
+#endif
+! end RGF
                 th1(k)=th(i,k,j)
                 tk1(k)=T3D(i,k,j)
                 rho1(k)=rho(i,k,j)
@@ -3751,12 +3766,17 @@ ENDIF
                 tsq1(k)=tsq(i,k,j)
                 qsq1(k)=qsq(i,k,j)
                 cov1(k)=cov(i,k,j)
+! RGF start
+#if (NMM_CORE != 1)
                 if (spp_pbl==1) then
                     rstoch_col(k)=pattern_spp_pbl(i,k,j)
                 else
                     rstoch_col(k)=0.0
                 endif
-
+#else
+                    rstoch_col(k)=0.0
+#endif
+! RGF end
 
                 IF ( bl_mynn_tkebudget == 1) THEN
                    !TKE BUDGET VARIABLES
@@ -3837,7 +3857,14 @@ ENDIF
              dz1(k)= dz(i,k,j)
              u1(k) = u(i,k,j)
              v1(k) = v(i,k,j)
+        !     w1(k) = w(i,k,j) ! original line
+! RGF - avoiding W problem in HWRF
+#if (HWRF==1)
+             w1(k) = 0.
+#else
              w1(k) = w(i,k,j)
+#endif
+! end if
              th1(k)= th(i,k,j)
              tk1(k)=T3D(i,k,j)
              rho1(k)=rho(i,k,j)
@@ -3893,12 +3920,18 @@ ENDIF
              tsq1(k)=tsq(i,k,j)
              qsq1(k)=qsq(i,k,j)
              cov1(k)=cov(i,k,j)
+
+! RGF start
+#if (NMM_CORE != 1)
              if (spp_pbl==1) then
                 rstoch_col(k)=pattern_spp_pbl(i,k,j)
              else
                 rstoch_col(k)=0.0
              endif
-
+#else
+                rstoch_col(k)=0.0
+#endif
+! RGF end
 
              !edmf
              edmf_a1(k)=0.0
@@ -4300,7 +4333,13 @@ ENDIF
                cldfra_bl(i,k,j)=cldfra_bl1D(k) !*Psig_shcu(i,j)
 
                !Stochastic perturbations to cldfra_bl and qc_bl
+! RGF start
+#if (NMM_CORE != 1)
                if (spp_pbl==1) then
+#else
+               if (1 < 0) then ! to force skipping this
+#endif
+! RGF end
                   cldfra_bl(i,k,j)= cldfra_bl(i,k,j)*(1.0-rstoch_col(k))
                   IF ((cldfra_bl(i,k,j) > 1.0) .or. (cldfra_bl(i,k,j) < 0.0)) then
                      cldfra_bl(i,k,j)=MAX(MIN(cldfra_bl(i,k,j),1.0),0.0)
@@ -4924,7 +4963,7 @@ ENDIF
   maxmf= 0.0
 
   IF ( fltv > 0.002 .AND. NUP2 .GE. 1 .AND. superadiabatic) then
-    !PRINT*," Conditions met to run mass-flux scheme",fltv,pblh
+   !PRINT*," Conditions met to run mass-flux scheme",fltv,pblh
 
     ! Find coef C for number size density N
     cn = 0.
