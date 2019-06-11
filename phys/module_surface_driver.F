@@ -51,10 +51,13 @@ CONTAINS
      &          ,flqc,flhc,psfc,sst,sst_input,sstsk,dtw,sst_update,sst_skin     &
      &          ,scm_force_skintemp,scm_force_flux,t2,emiss           &
      &          ,sf_sfclay_physics,sf_surface_physics,ra_lw_physics   & 
+     &          ,bl_pbl_physics                                       &
      &          ,mosaic_lu,mosaic_soil                                &
      &          ,landusef,soilctop,soilcbot,ra,rs,nlcat,nscat,vegf_px & ! PX-LSM
      &          ,snowncv, anal_interval, lai, imperv, canfra          & ! PX-LSM
      &          ,pxlsm_smois_init, pxlsm_soil_nudge                   & ! PX-LSM
+     &          ,pxlsm_modis_veg, lai_px, wwlt_px, wfc_px                           & ! PX-LSM
+     &          ,wsat_px, clay_px, csand_px, fmsand_px                              & ! PX-LSM
      &          ,idveg    ,iopt_crs  ,iopt_btr  ,iopt_run  ,iopt_sfc  ,iopt_frz     &
      &          ,iopt_inf ,iopt_rad  ,iopt_alb  ,iopt_snf  ,iopt_tbot ,iopt_stc     &
      &          ,iopt_gla ,iopt_rsf  ,iopt_soil ,iopt_pedo ,iopt_crop               &
@@ -240,7 +243,16 @@ CONTAINS
      &          ,bldt,curr_secs,adapt_step_flag,bldtacttime           & 
          ! Optional urban with BEP
      &          ,sf_urban_physics,gmt,xlat,xlong,julday               &
-     &          ,num_urban_layers                                     & !multi-layer urban
+     &          ,num_urban_ndm                                        & !multi-layer urban
+     &          ,urban_map_zrd                                        & !multi-layer urban
+     &          ,urban_map_zwd                                        & !multi-layer urban
+     &          ,urban_map_gd                                         & !multi-layer urban
+     &          ,urban_map_zd                                         & !multi-layer urban
+     &          ,urban_map_zdf                                        & !multi-layer urban
+     &          ,urban_map_bd                                         & !multi-layer urban
+     &          ,urban_map_wd                                         & !multi-layer urban
+     &          ,urban_map_gbd                                        & !multi-layer urban
+     &          ,urban_map_fbd                                        & !multi-layer urban
      &          ,num_urban_hi                                         & !multi-layer urban
      &          ,tsk_rural                                            & !multi-layer urban
      &          ,trb_urb4d,tw1_urb4d,tw2_urb4d,tgb_urb4d              & !multi-layer urban
@@ -287,6 +299,8 @@ CONTAINS
                                        ,SFCLAYREVSCHEME           &
                                        ,MYJSFCSCHEME              &
                                        ,QNSESFCSCHEME             &
+                                       ,MYJPBLSCHEME              &
+                                       ,QNSEPBLSCHEME             &
                                        ,GFSSFCSCHEME              &
                                        ,PXSFCSCHEME               &
                                        ,NOAHMPSCHEME              &
@@ -306,6 +320,8 @@ CONTAINS
                                        ,SFCLAYREVSCHEME           &
                                        ,MYJSFCSCHEME              &
                                        ,QNSESFCSCHEME             &
+                                       ,MYJPBLSCHEME              &
+                                       ,QNSEPBLSCHEME             &
                                        ,GFSSFCSCHEME              &
                                        ,PXSFCSCHEME               &
                                        ,NOAHMPSCHEME              &
@@ -521,6 +537,14 @@ CONTAINS
 !-- CANFRA       Canopy/Tree fraction                  ! P-X LSM
 !-- NLCAT        Number of landuse categories          ! P-X LSM
 !-- NSCAT        Number of soil categories             ! P-X LSM
+!-- pxlsm_modis_veg   Flag for using MODIS vegeation LAI and vegF (1 is yes)    ! P-X LSM
+!-- LAI_PX            Computed LAI for PX (m^2/m^2)                             ! P-X LSM
+!-- WWLT_PX           Computed soil wilting point for PX (m^3/m^3)              ! P-X LSM
+!-- WFC_PX            Computed soil field capacity for PX (m^3/m^3)             ! P-X LSM
+!-- WSAT_PX           Computed soil saturation for PX (m^3/m^3)                 ! P-X LSM
+!-- CLAY_PX           Aggregated soil clay fraction for PX (%)                  ! P-X LSM
+!-- CSAND_PX          Aggregated soil coarse sand fraction for PX (%)           ! P-X LSM
+!-- FMSAND_PX         Aggregated soil fine-medium sand fraction for PX (%)      ! P-X LSM
 !-- ch - drag coefficient for heat/moisture            ! MYNN LSM
 
 !
@@ -579,7 +603,7 @@ CONTAINS
 
    INTEGER, INTENT(IN) :: sf_sfclay_physics, sf_surface_physics,      &
                           sf_urban_physics,ra_lw_physics,sst_update,  &
-                          ra_sw_physics                    
+                          ra_sw_physics, bl_pbl_physics
    INTEGER, INTENT(IN),OPTIONAL :: sst_skin, tmn_update,              &
                                    scm_force_skintemp, scm_force_flux 
 
@@ -889,30 +913,39 @@ CONTAINS
    REAL, OPTIONAL, INTENT(IN  )   ::                                   GMT 
    INTEGER, OPTIONAL, INTENT(IN  ) ::                               JULDAY
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN   )        ::XLAT, XLONG
-   INTEGER, INTENT(IN )::   NUM_URBAN_LAYERS
+   INTEGER , INTENT(IN)        ::     num_urban_ndm
+   INTEGER , INTENT(IN)        ::     urban_map_zrd
+   INTEGER , INTENT(IN)        ::     urban_map_zwd
+   INTEGER , INTENT(IN)        ::     urban_map_gd
+   INTEGER , INTENT(IN)        ::     urban_map_zd
+   INTEGER , INTENT(IN)        ::     urban_map_zdf
+   INTEGER , INTENT(IN)        ::     urban_map_bd
+   INTEGER , INTENT(IN)        ::     urban_map_wd
+   INTEGER , INTENT(IN)        ::     urban_map_gbd
+   INTEGER , INTENT(IN)        ::     urban_map_fbd
    INTEGER, INTENT(IN )::   NUM_URBAN_HI
    REAL, OPTIONAL, DIMENSION( ims:ime,                     jms:jme ), INTENT(INOUT) :: tsk_rural
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: trb_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw1_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw2_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tgb_urb4d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tlev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: qlev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw1lev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tw2lev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tglev_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: tflev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zrd, jms:jme ), INTENT(INOUT) :: trb_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zwd, jms:jme ), INTENT(INOUT) :: tw1_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zwd, jms:jme ), INTENT(INOUT) :: tw2_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_gd,  jms:jme ), INTENT(INOUT) :: tgb_urb4d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_bd,  jms:jme ), INTENT(INOUT) :: tlev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_bd,  jms:jme ), INTENT(INOUT) :: qlev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd,  jms:jme ), INTENT(INOUT) :: tw1lev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd,  jms:jme ), INTENT(INOUT) :: tw2lev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_gbd, jms:jme ), INTENT(INOUT) :: tglev_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_fbd, jms:jme ), INTENT(INOUT) :: tflev_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: lf_ac_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: sf_ac_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: cm_ac_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: sfvent_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(INOUT) :: lfvent_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfwin1_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfwin2_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfw1_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfw2_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfr_urb3d
-   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_layers, jms:jme ), INTENT(INOUT) :: sfg_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd,  jms:jme ), INTENT(INOUT) :: sfwin1_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_wd,  jms:jme ), INTENT(INOUT) :: sfwin2_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zd,  jms:jme ), INTENT(INOUT) :: sfw1_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zd,  jms:jme ), INTENT(INOUT) :: sfw2_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:urban_map_zdf, jms:jme ), INTENT(INOUT) :: sfr_urb3d
+   REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_ndm, jms:jme ), INTENT(INOUT) :: sfg_urb3d
    REAL, OPTIONAL, DIMENSION( ims:ime, 1:num_urban_hi, jms:jme ), INTENT(IN)  :: hi_urb2d  !urban
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN)  :: lp_urb2d  !urban
    REAL, OPTIONAL, DIMENSION( ims:ime, jms:jme ), INTENT(IN)  :: lb_urb2d  !urban
@@ -980,7 +1013,9 @@ CONTAINS
 !
 !  PX LSM Surface Grid Analysis nudging
 !
-   INTEGER, OPTIONAL, INTENT(IN)    :: pxlsm_smois_init, pxlsm_soil_nudge, ANAL_INTERVAL
+   INTEGER, OPTIONAL, INTENT(IN)    :: pxlsm_smois_init, pxlsm_soil_nudge,  &
+                                       ANAL_INTERVAL, pxlsm_modis_veg
+
    REAL, DIMENSION( ims:ime, NLCAT, jms:jme ) , OPTIONAL, INTENT(INOUT)::   LANDUSEF
    REAL, DIMENSION( ims:ime, NSCAT, jms:jme ) , OPTIONAL, INTENT(INOUT)::   SOILCTOP, SOILCBOT
    REAL, DIMENSION( ims:ime , jms:jme ), OPTIONAL, INTENT(INOUT):: IMPERV, CANFRA
@@ -988,16 +1023,14 @@ CONTAINS
    REAL, DIMENSION( ims:ime, jms:jme ) , OPTIONAL, INTENT(INOUT):: RA
    REAL, DIMENSION( ims:ime, jms:jme ) , OPTIONAL, INTENT(INOUT):: RS
    REAL, DIMENSION( ims:ime, jms:jme ) , OPTIONAL, INTENT(INOUT):: LAI
-   REAL, DIMENSION( ims:ime, jms:jme ), OPTIONAL, INTENT(OUT)::   T2OBS
-   REAL, DIMENSION( ims:ime, jms:jme ), OPTIONAL, INTENT(OUT)::   Q2OBS
+   REAL, DIMENSION( ims:ime, jms:jme ), OPTIONAL, INTENT(OUT)::   T2OBS,  Q2OBS, LAI_PX
+   REAL, DIMENSION( ims:ime, jms:jme ), OPTIONAL, INTENT(OUT)::  WWLT_PX, WFC_PX, WSAT_PX,    & 
+                                                                 CLAY_PX, CSAND_PX, FMSAND_PX                                       
 
-   REAL,       DIMENSION( ims:ime,  jms:jme ),                           &
-               OPTIONAL, INTENT(INOUT)    ::      t2_ndg_old,            &
-                                                  q2_ndg_old,            &
-                                                  t2_ndg_new,            &
-                                                  q2_ndg_new,            &
-                                                  sn_ndg_old,            &
-                                                  sn_ndg_new
+   REAL,       DIMENSION( ims:ime,  jms:jme ),                                     &
+               OPTIONAL, INTENT(INOUT)    ::  t2_ndg_old, t2_ndg_new, q2_ndg_old,  &
+                                              q2_ndg_new, sn_ndg_old, sn_ndg_new 
+
 !
 !
 ! Flags relating to the optional tendency arrays declared above
@@ -1155,7 +1188,7 @@ CONTAINS
 !
    INTEGER :: i,J,K,NK,jj,ij
    INTEGER :: gfdl_ntsflg
-   LOGICAL :: radiation, myj, frpcpn, isisfc
+   LOGICAL :: radiation, myj, myjpbl, frpcpn, isisfc
    LOGICAL, INTENT(in), OPTIONAL :: rdlai2d
    LOGICAL, INTENT(in), OPTIONAL :: usemonalb
    REAL    :: total_depth,mid_point_depth
@@ -1736,6 +1769,10 @@ CONTAINS
   frpcpn = .false.
   myj    = ((sf_sfclay_physics .EQ. MYJSFCSCHEME) .OR. &
             (sf_sfclay_physics .EQ. QNSESFCSCHEME) )
+
+  myjpbl = ((bl_pbl_physics .EQ. MYJPBLSCHEME) .OR. &
+            (bl_pbl_physics .EQ. QNSEPBLSCHEME) )
+
   isisfc = ( FRACTIONAL_SEAICE .EQ. 1  .AND. (          &
             (sf_sfclay_physics .EQ. SFCLAYSCHEME ) .OR. &
             (sf_sfclay_physics .EQ. SFCLAYREVSCHEME ) .OR. &
@@ -2630,7 +2667,16 @@ CONTAINS
                 DRELR_URB2D,DRELB_URB2D,DRELG_URB2D,            & !H urban
                 FLXHUMR_URB2D,FLXHUMB_URB2D,FLXHUMG_URB2D,      & !H urban
                 FRC_URB2D, UTYPE_URB2D,                         & !I urban
-                num_urban_layers,                               & !I multi-layer urban
+                num_urban_ndm,                                  & !I multi-layer urban
+                urban_map_zrd,                                  & !I multi-layer urban
+                urban_map_zwd,                                  & !I multi-layer urban
+                urban_map_gd,                                   & !I multi-layer urban
+                urban_map_zd,                                   & !I multi-layer urban
+                urban_map_zdf,                                  & !I multi-layer urban
+                urban_map_bd,                                   & !I multi-layer urban
+                urban_map_wd,                                   & !I multi-layer urban
+                urban_map_gbd,                                  & !I multi-layer urban
+                urban_map_fbd,                                  & !I multi-layer urban
                 num_urban_hi,                                   & !I multi-layer urban
                 tsk_rural,                                      & !H multi-layer urban
                 trb_urb4d,tw1_urb4d,tw2_urb4d,tgb_urb4d,        & !H multi-layer urban
@@ -2735,7 +2781,16 @@ CONTAINS
                 FLXHUMR_URB2D,FLXHUMB_URB2D,FLXHUMG_URB2D,      & !H urban
                 julian, julyr,                                  & !H urban
                 FRC_URB2D, UTYPE_URB2D,                         & !I urban
-                num_urban_layers,                               & !I multi-layer urban
+                num_urban_ndm,                                  & !I multi-layer urban
+                urban_map_zrd,                                  & !I multi-layer urban
+                urban_map_zwd,                                  & !I multi-layer urban
+                urban_map_gd,                                   & !I multi-layer urban
+                urban_map_zd,                                   & !I multi-layer urban
+                urban_map_zdf,                                  & !I multi-layer urban
+                urban_map_bd,                                   & !I multi-layer urban
+                urban_map_wd,                                   & !I multi-layer urban
+                urban_map_gbd,                                  & !I multi-layer urban
+                urban_map_fbd,                                  & !I multi-layer urban
                 num_urban_hi,                                   & !I multi-layer urban
                 tsk_rural,                                      & !H multi-layer urban
                 trb_urb4d,tw1_urb4d,tw2_urb4d,tgb_urb4d,        & !H multi-layer urban
@@ -3045,7 +3100,9 @@ CONTAINS
                              julian,          julyr,                                        & !H urban
                           frc_urb2d,    utype_urb2d,                                        & !I urban
                                 chs,           chs2,           cqs2,                        & !H
-                   num_urban_layers,                                                        & !I multi-layer urban
+                      num_urban_ndm,  urban_map_zrd,  urban_map_zwd, urban_map_gd,          & !I multi-layer urban
+                       urban_map_zd,  urban_map_zdf,   urban_map_bd, urban_map_wd,          & !I multi-layer urban
+                      urban_map_gbd,  urban_map_fbd,                                        & !I multi-layer urban
                        num_urban_hi,                                                        & !I multi-layer urban
                           trb_urb4d,      tw1_urb4d,      tw2_urb4d,  tgb_urb4d,            & !H multi-layer urban
                          tlev_urb3d,     qlev_urb3d,                                        & !H multi-layer urban
@@ -3342,7 +3399,7 @@ CONTAINS
                 sfcrunoff,udrunoff,acrunoff,sfcexc,             &
                 sfcevp,grdflx,snowfallac,acsnow,acsnom,         &
                 smfr3d,keepfr3dflag,                            &
-                myj,shdmin,shdmax,rdlai2d,                      &
+                myjpbl,shdmin,shdmax,rdlai2d,                   &
                 ids,ide, jds,jde, kds,kde,                      &
                 ims,ime, jms,jme, kms,kme,                      &
                 i_start(ij),i_end(ij), j_start(ij),j_end(ij), kts,kte    )
@@ -3459,6 +3516,8 @@ CONTAINS
                      t2_ndg_old,t2_ndg_new,q2_ndg_old,q2_ndg_new,    &
                      sn_ndg_old, sn_ndg_new, snow, snowh,snowncv,    &
                      t2obs, q2obs,pxlsm_smois_init,pxlsm_soil_nudge, &
+                     pxlsm_modis_veg, LAI_PX, WWLT_PX, WFC_PX,       &
+                     WSAT_PX, CLAY_PX, CSAND_PX, FMSAND_PX,          &
                      ids,ide, jds,jde, kds,kde,                      &
                      ims,ime, jms,jme, kms,kme,                      &
                      i_start(ij),i_end(ij), j_start(ij),j_end(ij), kts,kte)

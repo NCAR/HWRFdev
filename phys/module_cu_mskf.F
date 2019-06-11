@@ -3387,10 +3387,18 @@ MODULE module_cu_mskf
 !     by introducing subgrid-scale cloud-radiation interactions. JGR, 119,
 !     5317-5330, doi:10.1002/2014JD021504.
 !
-! Zheng et al., 2015: Improving High-Resolution Weather Forecasts using the
+! Zheng et al., 2016: Improving High-Resolution Weather Forecasts using the
 !     Weather Research and Forecasting (WRF) Model with an Updated Kain-Fritsch
-!     Scheme. Revision - Mon. Wea. Rev.
-!ckay
+!     Scheme. Mon. Wea. Rev., 144, 833-860
+!
+! He, J., and K. Alapaty, 2018:  Precipitation partitioning in multiscale atmospheric 
+!     simulations: Impacts of stability restoration methods. Journal of Geophysical 
+!     Research: Atmospheres, 123. https://doi.org/10.1029/2018JD028710
+!
+! Glotfelty, T., K. Alapaty, J. He, P. Hawbecker, X. Song, and G. Zhang, 2019: 
+!     The Weather Research and Forecasting Model with Aerosol Cloud Interactions 
+!     (WRF-ACI): Development, Evaluation, and Initial Application. Mon. Wea. Rev., IN PRESS.
+!
 !--------------------------------------------------------------------
 ! Lookup table variables:
       INTEGER, PARAMETER :: KFNT=250,KFNP=220
@@ -5062,8 +5070,8 @@ updraft:    DO NK=K,KL-1
                Itest = 0
                 if(Itest.eq.1) then
 
-               write(121,*),'k,nk, kq,jk,su,quuE3,muu,duu,cmel,zfu,pru,tee, &
-               qeeE3,zmqliqE4,zmqiceE4,rprd,wump,euu,ncmp,nimp,sprd,frz'
+               write(121,*) 'k,nk, kq,jk,su,quuE3,muu,duu,cmel,zfu,pru,tee,&
+              &qeeE3,zmqliqE4,zmqiceE4,rprd,wump,euu,ncmp,nimp,sprd,frz'
                do kq=K,NK
                JK = KTE-KQ+1
                write (121,2021) k,nk,kq,jk,su(1,jk),quu(1,jk)*1000,muu(1,jk),duu(1,jk),cmel(1,jk)
@@ -5564,6 +5572,7 @@ updraft:    DO NK=K,KL-1
  
          NIC=NINT(TIMEC/DT)
          TIMEC=FLOAT(NIC)*DT
+         TIMEC=MIN(TIMEC,86400.)  !JRJ Ramboll: cap convective time scale at 24 hrs
 !     
 !...COMPUTE WIND SHEAR AND PRECIPITATION EFFICIENCY.
 !     
