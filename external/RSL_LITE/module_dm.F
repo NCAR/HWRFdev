@@ -1694,7 +1694,9 @@ LOGICAL FUNCTION wrf_dm_land_logical ( inval )
            CALL mpi_init ( ierr )
            mpi_comm_here = MPI_COMM_WORLD
         END IF
-        CALL atm_cmp_start( mpi_comm_here )
+        CALL atm_cmp_start_p0( mpi_comm_here ) !BT 7/7/2019 Separate original atm_cmp_start into two 
+!               separate routines; first one, comprising splitting of communicator for coupled components and initial part of 
+!               handshaking with coupler, is called here.
         CALL wrf_set_dm_communicator( mpi_comm_here )
         CALL wrf_termio_dup( mpi_comm_here )
       END IF
@@ -1831,6 +1833,11 @@ LOGICAL FUNCTION wrf_dm_land_logical ( inval )
       CALL mpi_bcast( nio_groups , 1 , MPI_INTEGER , 0 , mpi_comm_here, ierr )
       CALL mpi_bcast( max_dom, 1 , MPI_INTEGER , 0 , mpi_comm_here, ierr )
       CALL mpi_bcast( parent_id, max_domains , MPI_INTEGER , 0 , mpi_comm_here, ierr )
+#if ( HWRF == 1 )
+    CALL ATM_PAR_INIT(max_dom) !BT 7/7/2019 Providing number of grids to coupler
+    CALL atm_cmp_start_p1 !BT 7/7/2019  Second part of original atm_cmp_start(see atm_cmp_start_p0 call) is called here.
+#endif
+
 #if ( HWRF == 1 )
 ! check to make sure that if nio_tasks_per_group is non-zero for any domain it has to be non-zero for all of them
       i = MAXVAL(nio_tasks_per_group(1:max_dom))
