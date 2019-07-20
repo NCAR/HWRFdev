@@ -1101,6 +1101,9 @@ IMPLICIT NONE
    NAMELIST /dm_task_split/comm_start, nest_pes_x, nest_pes_y
       
    comm_start=0
+   ccr_atm = 0
+   ncpldom = (ndom-1)/2 +1
+   IF (Coupler_id < 0) RETURN
    IF (process_rank_local == component_master_rank_local) THEN
       OPEN(27, FILE="namelist.input", FORM="FORMATTED", STATUS="OLD" )
       READ(27, NML=dm_task_split, IOSTAT=io_status )
@@ -1112,8 +1115,6 @@ IMPLICIT NONE
    ENDIF
    CALL MPI_BCAST(comm_start, max_ndom, MPI_INTEGER,  &
           component_master_rank_local, MPI_COMM_Atmos, ierr)  
-   ncpldom = (ndom-1)/2 +1
-   ccr_atm = 0
    DO n=2, ncpldom
        ccr_atm(n) = comm_start(2*n-2)
    ENDDO
