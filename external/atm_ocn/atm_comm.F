@@ -83,7 +83,7 @@
       END TYPE windp_array
 
       TYPE (SST_ARRAY), dimension(ND):: SST_cc
-      TYPE (SF_ARRAY), dimension(min(ND,2)):: sf
+      TYPE (SF_ARRAY), dimension(ND):: sf
       TYPE (cur_array), dimension(nd) ::  ucur_cc, vcur_cc
       TYPE (wstate_array), dimension(nd) :: alpha_cc, gamma_cc
       TYPE (windp_array), dimension(nd) :: wwinp
