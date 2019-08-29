@@ -14,11 +14,19 @@
 
      &   MPI_INTEGER,MPI_STATUS_SIZE, &
      &   kind_REAL,kind_alt_REAL, &
-     &   MPI_kind_REAL,MPI_kind_alt_REAL
+     &   MPI_kind_REAL,MPI_kind_alt_REAL, &
+!*   &   cmp_domain, &
+     &   comm_process
 
       implicit none
 
-      integer,parameter:: ND=17   !BT Max 8 storms
+      integer ngproc        /1/
+      integer,parameter:: max_ngproc=6         !<-DS  !BT Max 5 storms
+      integer,parameter:: max_ndom=max_ngproc*2-1  ! 2 nests per storm
+      integer,dimension(1:max_ngproc+1):: CCR_Atmos
+      integer,dimension(1:max_ndom):: gproc_dom
+
+      integer,parameter:: ND=11   !BT Max 5 storms
       integer Ocean_spec /-1/, WM_id /-10/
       integer NSF
       integer NSF_WM
@@ -45,8 +53,8 @@
       integer rc /5/
       real,parameter:: &
      &   SLM_OS_value=1., & !<-must be real open sea mask value in AM
-     &   unrealistically_low_SST=0.01, &  ! <- must be unreal low but >=0.,
-                                       ! see interp. --- check!
+     &   unrealistically_low_SST=0.01, & !<-must be unreal low but >=0.,
+                                         ! see interp. --- check!
      &   unrealistically_low_SV=-1.E30, &
                      ! <- must be negative unreal low surface flux
                      ! or other surface value to be sent
@@ -75,7 +83,7 @@
       END TYPE windp_array
 
       TYPE (SST_ARRAY), dimension(ND):: SST_cc
-      TYPE (SF_ARRAY), dimension(min(ND,2)):: sf
+      TYPE (SF_ARRAY), dimension(ND):: sf
       TYPE (cur_array), dimension(nd) ::  ucur_cc, vcur_cc
       TYPE (wstate_array), dimension(nd) :: alpha_cc, gamma_cc
       TYPE (windp_array), dimension(nd) :: wwinp
@@ -91,20 +99,14 @@
      &        iw2a /0/
 
 ! Define domains active in coupling                      !BT
-!      logical cpl_gids(ND) /.true.,.true.,.false.,.true.,.false.,   &
-!     &                      .true.,.false.,.true.,.false.,          &
-!     &                      .true.,.false.,.true.,.false.,          &
-!     &                      .true.,.false.,.true.,.false./
-      
-      logical cpl_gids(ND) /.true.,.false.,.false.,.false.,.false.,   &
-     &                      .false.,.false.,.false.,.false.,          &
-     &                      .false.,.false.,.false.,.false.,          &
-     &                      .false.,.false.,.false.,.false./
+      logical cpl_gids(ND) /.true.,.true.,.false.,.true.,.false.,   &
+     &                      .true.,.false.,.true.,.false.,          &
+     &                      .true.,.false./
       SAVE
 
       END MODULE ATM_cc
 !C
-!C***********************************************************************
+!C**********************************************************************
 !C
       SUBROUTINE ATM_SET_COMM(new_atm_comm)
         USE ATM_cc
@@ -120,7 +122,7 @@
         MPI_COMM_Atmos=new_atm_comm
       end
 !C
-!C***********************************************************************
+!C**********************************************************************
 !C
       SUBROUTINE ATM_LEAVE_COUPLING()
         USE ATM_cc
@@ -137,9 +139,58 @@
 
       end
 !C
-!C***********************************************************************
+!C**********************************************************************
 !C
-      SUBROUTINE ATM_CMP_START(atm_comm)
+      SUBROUTINE ATM_PAR_INIT(ndom)
+
+      USE ATM_cc
+
+      implicit none
+
+      integer, intent(in) :: ndom
+      integer :: ccr_d(max_ngproc)
+      integer :: ncpldom
+      integer i     
+
+!
+      gproc_dom(1)=1
+      do i=2,max_ngproc
+        gproc_dom(2*i-2)=i
+        gproc_dom(2*i-1)=max_ngproc+1
+      end do
+        
+      CALL cpl_dm_rankstart(ndom, ncpldom, ccr_d)
+      ngproc=ncpldom
+      CCR_Atmos=0
+      CCR_Atmos(max_ngproc+1)=-1
+      do i=2, ngproc
+       CCR_Atmos(i) = ccr_d(i)
+      enddo
+
+      return
+      END
+
+!C
+!C**********************************************************************
+!C
+      SUBROUTINE ATM_CMP_START_p0(atm_comm)
+
+      USE ATM_cc
+
+      implicit none
+      integer atm_comm
+      integer Atmos_id /1/, Atmos_master_rank_local /0/
+
+      call CMP_INIT(Atmos_id,1)
+      call CMP_MASTER_RANK(Atmos_master_rank_local)
+
+      atm_comm=MPI_COMM_Atmos
+      return
+      END
+!C
+!C**********************************************************************
+!C
+      SUBROUTINE ATM_CMP_START_p1
 
       USE ATM_cc
 
@@ -148,7 +199,7 @@
       integer atm_comm
 
 !     integer Atmos_id /1/, Atmos_master_rank_local /0/, Atmos_spec /1/
-      integer Atmos_id /1/, Atmos_master_rank_local /0/, Atmos_spec /0/
+      integer Atmos_spec /0/
 !                                                            <- D.S.
 !        Atmos_spec=1 for the case when the only field AM receives
 !        from Coupler is SST. Atmos_spec=0 allows receiving additional
@@ -159,19 +210,24 @@
       character*20 s
 !C
 
-                      !<-id of OM as a component of the coupled system
-      call CMP_INIT(Atmos_id,1)
-                             !<-"flexibility level"
       if (Coupler_id.ge.0) VerbLev=min(VerbLev,ibuffer(4))
       write(s,'(i2)') VerbLev
 
-      call CMP_INTRO(Atmos_master_rank_local)
+!legacy      call CMP_INTRO(Atmos_master_rank_local)
+!!      call CMP_MASTER_RANK(Atmos_master_rank_local)
+      call CMP_INTRO(-ngproc)
       call ATM_ANNOUNCE('back from CMP_INTRO, VerbLev='//s,2)
+
+      call CMP_INTRO_CCR(CCR_Atmos)
+
+      call ATM_ANNOUNCE('back from CMP_INTRO_CCR, VerbLev='//s,2)
 
       initialized=.true.
 
+      comm_process=.false.
       call CMP_INTEGER_SEND(Atmos_spec,1)
 
+      comm_process=.false.
       call CMP_gnr_RECV(Ocean_spec,1,MPI_INTEGER)
       write(s,'(i2)') Ocean_spec
       call ATM_ANNOUNCE('back from CMP_INTEGER_RECV, OM spec is '//s,2)
@@ -179,6 +235,7 @@
      &component_master_rank_local,MPI_COMM_Atmos,ierr)
       call ATM_ANNOUNCE('ATM_CMP_START: Ocean_spec broadcast',2)
 
+      comm_process=.false.
       call CMP_gnr_RECV(WM_id,1,MPI_INTEGER)
       write(s,'(i4)') WM_id
       call ATM_ANNOUNCE('back from CMP_INTEGER_RECV, WM id is '//s,2)
@@ -207,6 +264,7 @@
      &  ' assigned (as if for POM coupling)',2)
       end if
 
+      comm_process=.false.
       call CMP_gnr_RECV(ia2o,1,MPI_INTEGER)
       write(s,'(i4)') ia2o
       call ATM_ANNOUNCE('back from CMP_INTEGER_RECV, ia2o is '//s,2)
@@ -214,6 +272,7 @@
      &component_master_rank_local,MPI_COMM_Atmos,ierr)
       call ATM_ANNOUNCE('ATM_CMP_START: ia2o broadcast',2)
 
+      comm_process=.false.
       call CMP_gnr_RECV(io2a,1,MPI_INTEGER)
       write(s,'(i4)') io2a
       call ATM_ANNOUNCE('back from CMP_INTEGER_RECV, io2a is '//s,2)
@@ -221,6 +280,7 @@
      &component_master_rank_local,MPI_COMM_Atmos,ierr)
       call ATM_ANNOUNCE('ATM_CMP_START: io2a broadcast',2)
 
+      comm_process=.false.
       call CMP_gnr_RECV(ia2w,1,MPI_INTEGER)
       write(s,'(i4)') ia2w
       call ATM_ANNOUNCE('back from CMP_INTEGER_RECV, ia2w is '//s,2)
@@ -228,6 +288,7 @@
      &component_master_rank_local,MPI_COMM_Atmos,ierr)
       call ATM_ANNOUNCE('ATM_CMP_START: ia2w broadcast',2)
 
+      comm_process=.false.
       call CMP_gnr_RECV(iw2a,1,MPI_INTEGER)
       write(s,'(i4)') iw2a
       call ATM_ANNOUNCE('back from CMP_INTEGER_RECV, iw2a is '//s,2)
@@ -277,12 +338,11 @@
          MPI_kind_windp = MPI_kind_alt_real
       END IF
 
-      atm_comm=MPI_COMM_Atmos
 
       return
       END
 !C
-!C***********************************************************************
+!C**********************************************************************
 !C
       SUBROUTINE ATM_INIT_CHECK(s)
 
@@ -297,7 +357,7 @@
       return
       END
 !C
-!C***********************************************************************
+!C**********************************************************************
 !C
       subroutine ATM_TSTEP_INIT(NTSD,NPHS,gid_,dta_, &
      &ids_,idf_,jds_,jdf_,its_,ite_,jts_,jte_,ims_,ime_,jms_,jme_, &
@@ -422,6 +482,7 @@
         if (zeroSF) then
           buf(gid,1)=i_parent_start
           buf(gid,2)=j_parent_start
+          comm_process=process_rank_local.eq.CCR_Atmos(gproc_dom(gid))
           call CMP_INTEGER_SEND(buf(gid,:),2)
           call ATM_ANNOUNCE( &
      &    'ATM_TSTEP_INIT: i_parent_start, j_parent_start sent '//s,3)
@@ -473,6 +534,7 @@
         call ATM_ANNOUNCE( &
      &  'ATM_RECVdtc: to receive C time step; AM time step dta='//s,2)
 
+        comm_process=.false.
         call CMP_gnr_RECV(buf,1,MPI_kind_R)
 
         call MPI_BCAST(buf,1,MPI_kind_R, &
@@ -544,6 +606,7 @@
       buf(1)=idf-ids+1
       buf(2)=jdf-jds+1
       call ATM_ANNOUNCE('to send grid dimensions,'//sgid,1)
+      comm_process=process_rank_local.eq.CCR_Atmos(gproc_dom(gid))
       call CMP_INTEGER_SEND(buf,2)
       call ATM_ANNOUNCE('grid dimensions sent,'//sgid,1)
 
@@ -565,6 +628,7 @@
 
         call ATM_ANNOUNCE('(BP) to send grid arrays (4 MPI calls)',2)
 
+        comm_process=process_rank_local.eq.CCR_Atmos(gproc_dom(gid))
         call CMP_gnr_SEND(ALONt,NGP,MPI_kind_lonlat)
         call CMP_gnr_SEND(ALATt,NGP,MPI_kind_lonlat)
         call CMP_gnr_SEND(ALONv,NGP,MPI_kind_lonlat)
@@ -604,6 +668,7 @@
 
       call ATM_ANNOUNCE('(BP) to send SLM',2)
 
+      comm_process=process_rank_local.eq.CCR_Atmos(gproc_dom(gid))
       call CMP_gnr_SEND(SLM_g,NGP,MPI_kind_SLM)
       call CMP_gnr_SEND(SLM_g,NGP,MPI_kind_SLM)
            ! Coupler requires as many copies of mask as there are grids
@@ -644,6 +709,7 @@
       end if
 
       if (getSST) then
+        comm_process=process_rank_local.eq.CCR_Atmos(gproc_dom(gid))
         if (n_ts(gid).eq.1 .and. gid.eq.1) then
           call ATM_ANNOUNCE('ATM_GETSST: to send ref. SST'//sgid,2)
           call ASSEMBLE(SST_g,SST,kind_SST)
@@ -792,6 +858,7 @@
 
       call ATM_ANNOUNCE('In ATM_SENDLUXES'//sgid,3)
 
+      comm_process=process_rank_local.eq.CCR_Atmos(gproc_dom(gid))
       do n=1,NSF
         call ASSEMBLE(F,sf(gid)%a(:,:,n),kind_sfcflux)
         call CMP_gnr_SEND(F,NGP,MPI_kind_sfcflux)
@@ -802,7 +869,7 @@
       return
       END
 !C
-!C***********************************************************************
+!C**********************************************************************
 !C
       SUBROUTINE ATM_ANNOUNCE(s,DbgLev)
 
@@ -816,9 +883,9 @@
       integer ierr
 !C
       if (DbgLev.le.VerbLev) then
-        if (s(1:5).eq.'(BP) ') then
-          call MPI_BARRIER(MPI_COMM_Atmos,ierr)
-        end if
+!020719        if (s(1:5).eq.'(BP) ') then
+!020719          call MPI_BARRIER(MPI_COMM_Atmos,ierr)
+!020719        end if
         CALL CMP_ANNOUNCE(nunit_announce,'AM: '//s)
       end if
 
@@ -852,6 +919,7 @@ SUBROUTINE atm_getcur(ucur,vcur)
    END IF
 
    IF (getcur) THEN
+      comm_process=process_rank_local.eq.CCR_Atmos(gproc_dom(gid))
       CALL atm_announce('atm_getcur: to receive CUR',3)
       CALL cmp_gnr_recv(ucur_g, ngp, mpi_kind_cur)
       CALL cmp_gnr_recv(vcur_g, ngp, mpi_kind_cur)
@@ -916,6 +984,7 @@ SUBROUTINE atm_getwstate(alpha,gamma)
    END IF
 
    IF (getwstate) THEN
+      comm_process=process_rank_local.eq.CCR_Atmos(gproc_dom(gid))
       CALL atm_announce('atm_getwsate: to receive WSTATE',3)
       CALL cmp_gnr_recv(alpha_g, ngp, mpi_kind_wstate)
       CALL cmp_gnr_recv(gamma_g, ngp, mpi_kind_wstate)
@@ -1010,9 +1079,43 @@ SUBROUTINE atm_sendwindp
 
    DO n = 1, NSF_WM
       CALL assemble(field, wwinp(gid)%a(:,:,n), kind_windp)
+      comm_process=process_rank_local.eq.CCR_Atmos(gproc_dom(gid))
       CALL cmp_gnr_send(field, ngp, mpi_kind_windp) 
    END DO
 
    CALL atm_announce('atm_prepwindp: reterned'//sgid,3)
 
 END SUBROUTINE atm_sendwindp
+
+SUBROUTINE cpl_dm_rankstart(ndom, ncpldom, ccr_atm)
+!Biju 7/7/2019
+!Reads namelist.input for dm_task_split data
+!
+USE ATM_cc
+IMPLICIT NONE 
+   INTEGER, INTENT(IN) :: ndom
+   INTEGER, INTENT(OUT) :: ncpldom, ccr_atm(max_ngproc)
+   INTEGER, DIMENSION(max_ndom) :: comm_start, nest_pes_x, nest_pes_y   
+   INTEGER :: ierr, n, io_status
+
+   NAMELIST /dm_task_split/comm_start, nest_pes_x, nest_pes_y
+      
+   comm_start=0
+   ccr_atm = 0
+   ncpldom = (ndom-1)/2 +1
+   IF (Coupler_id < 0) RETURN
+   IF (process_rank_local == component_master_rank_local) THEN
+      OPEN(27, FILE="namelist.input", FORM="FORMATTED", STATUS="OLD" )
+      READ(27, NML=dm_task_split, IOSTAT=io_status )
+      CLOSE (27)
+      IF (io_status /= 0 .OR. SUM(comm_start) < 0)THEN
+         CALL GLOB_ABORT(1, '"dm_task_split" group missing or incorrect in the namelist.input, &
+            aborted', 1)
+      END IF        
+   ENDIF
+   CALL MPI_BCAST(comm_start, max_ndom, MPI_INTEGER,  &
+          component_master_rank_local, MPI_COMM_Atmos, ierr)  
+   DO n=2, ncpldom
+       ccr_atm(n) = comm_start(2*n-2)
+   ENDDO
+END SUBROUTINE cpl_dm_rankstart
