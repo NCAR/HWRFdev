@@ -736,7 +736,7 @@ CONTAINS
 ! used in solve_nmm of the HWRF version to decide whether or not to call the coupler.  If there is more than
 ! one nest to a parent then that implies there are multiple storms, so we turn off the coupling.
          IF ( parent%num_nests .GT. 1 ) THEN
-           CALL nl_set_multi_storm(1,.FALSE.)
+           CALL nl_set_multi_storm(1,.TRUE.)
          ENDIF
 #endif
       END IF
