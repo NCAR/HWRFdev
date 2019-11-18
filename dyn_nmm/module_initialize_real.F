@@ -2157,6 +2157,7 @@ CONTAINS
      integer                           :: io_form_auxinput2
      character(len=255)                :: input_fname
      logical                           :: file_exists
+     logical                           :: file_exists_int, file_exists_nc
 
      CALL get_ijk_from_grid (  grid ,              &
           pids, pide, pjds, pjde, pkds, pkde, &
@@ -2288,14 +2289,25 @@ CONTAINS
 ! If file geo_nmm_nest.l01.nc exists, read in high-resolution landsea masks and
 ! reset the above-generated sea land mask (obtained from the nearest point method based on its parent domain)
      input_fname='geo_nmm_nest.l01.nc'
-     inquire(file=trim(input_fname),exist=file_exists)
+     inquire(file=trim(input_fname),exist=file_exists_nc)
+     if ( .NOT. file_exists_nc ) then
+        input_fname='geo_nmm_nest.l01.int'
+        inquire(file=trim(input_fname),exist=file_exists_int)
+     endif
+     file_exists = file_exists_nc .OR. file_exists_int
      if (file_exists) then
         write(message,*) 'File ',trim(input_fname),' exists. Read in high-resolution sea land masks.'
         call wrf_message(message)
         nullify(tr)
         level=1
         input_type=2
-        io_form_auxinput2=2
+        if (file_exists_nc) then
+            io_form_auxinput2=2
+        else if(file_exists_int) then
+            io_form_auxinput2=1
+        else
+            io_form_auxinput2=-999
+        endif
         tr=>terrain_for(level,input_type,io_form_auxinput2)
         do nj=1,njde
         do ni=1,nide
