@@ -722,7 +722,8 @@ contains
 101          format('i=',I0,' j=',I0,' kp=',I0,' ground level =',I0)
              !write(0,101) i,j,kp,ground_level(i,j)
              if(kp<1) then
-                call wrf_error_fatal("Lowest model surface pressure is lower than second lowest standard pressure level." )
+#mkb                call wrf_error_fatal("Lowest model surface pressure is lower than second lowest standard pressure level." )
+                call wrf_message2("Lowest model surface pressure is lower than second lowest standard pressure level." )
              endif
              ! Ground is below lowest model level
              !newZ=presZ(i,j,kp)

@@ -154,7 +154,8 @@ CONTAINS
                    , TEMFPBLSCHEME, GFSEDMFSCHEME           &
                    , CAMUWPBLSCHEME                                       &
                    , FITCHSCHEME, SHINHONGSCHEME                          &
-                   , GBMPBLSCHEME, MYJSFCSCHEME, MYNNPBLSCHEME2, MYNNPBLSCHEME3 ! RGF mod
+                   , GBMPBLSCHEME, MYJSFCSCHEME, MYNNPBLSCHEME2, MYNNPBLSCHEME3& ! RGF mod
+                   , p_qnwfa,p_qnifa
 #endif
 
    USE module_model_constants

@@ -1901,13 +1901,14 @@ CONTAINS
       qBUOY1D(kts)=qBUOY1D(kts+1)
       qDISS1D(kts)=qDISS1D(kts+1)
    ENDIF
-
+#if (NMM_CORE != 1)
     if (spp_pbl==1) then
        DO k = kts,kte
           dfm(k)= dfm(k) + dfm(k)* rstoch_col(k) * 1.5 * MAX(exp(-MAX(zw(k)-8000.,0.0)/2000.),0.001)
           dfh(k)= dfh(k) + dfh(k)* rstoch_col(k) * 1.5 * MAX(exp(-MAX(zw(k)-8000.,0.0)/2000.),0.001)
        END DO
     endif
+#endif
 
 !    RETURN
 #ifdef HARDCODE_VERTICAL
@@ -2470,7 +2471,11 @@ CONTAINS
            a(k) = 1./(1. + xl*rsl/cpm)         ! CB02 variable "a"
 
            !SPP
+#if (NMM_CORE != 1)
            qw_pert = qw(k) + qw(k)*0.5*rstoch_col(k)*real(spp_pbl)
+#else
+           qw_pert = qw(k)
+#endif
 
            !qmq(k) = a(k) * (qw(k) - qsat_tl) ! saturation deficit/excess;
                                                !   the numerator of Q1
@@ -5402,7 +5407,9 @@ ENDIF
           IF(UPW(K-1,I) > 2.0) ENT(k,i) = ENT(k,i) + EntThrottle*(UPW(K-1,I) - 2.0)
 
           !SPP
+#if (NMM_CORE != 1)
           ENT(k,i) = ENT(k,i) * (1.0 - rstoch_col(k))
+#endif
 
           ENT(k,i) = min(ENT(k,i),0.9/(ZW(k+1)-ZW(k)))
 
@@ -5618,6 +5625,13 @@ ENDIF
     ! So, s_awthl(kts+1) must be less than flt
     THVk = (THL(kts)*DZ(kts+1)+THL(kts+1)*DZ(kts))/(DZ(kts+1)+DZ(kts))
     flx1 = MAX(s_aw(kts+1)*(s_awthl(kts+1)/s_aw(kts+1) - THVk),0.0)
+    !GJF: check if s_aw(kts+1)/=0 before using it; if KTOP=0, s_aw(kts+1) = 0; caught using -fpe0 with intel compiler
+    IF (s_aw(kts+1) /= 0.) THEN
+      THVk = (THL(kts)*DZ(kts+1)+THL(kts+1)*DZ(kts))/(DZ(kts+1)+DZ(kts))
+      flx1 = MAX(s_aw(kts+1)*(s_awthl(kts+1)/s_aw(kts+1) - THVk),0.0)
+    ELSE
+      flx1 = 0.0
+    ENDIF
     !flx1 = -dt/dz(kts)*s_awthl(kts+1)
     !flx1 = (s_awthl(kts+1)-s_awthl(kts))!/(0.5*(dz(k)+dz(k-1)))
     adjustment=1.0
