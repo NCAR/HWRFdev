@@ -1030,7 +1030,7 @@
 !
       REAL,DIMENSION(IMS:IME,KMS:KME,JMS:JME) :: DUDT_PHY,DVDT_PHY,DZ   &
      &                                          ,P_PHY,P8W,PI_PHY       &
-     &                                          ,RQCBLTEN,RQIBLTEN, RQNIBLTEN      & ! RGF mod
+     &                                          ,RQCBLTEN,RQIBLTEN    & !, RQNIBLTEN      & ! RGF mod
 !BSF &                                     ,RQSBLTEN,RQRBLTEN,RQGBLTEN  &
      &                                          ,RR,DELP                & ! GWD
      &                                          ,T_PHY,TH_PHY,TKE       &
@@ -1310,7 +1310,7 @@
           RQVBLTEN(I,K,J)=0.
           RQCBLTEN(I,K,J)=0.
           RQIBLTEN(I,K,J)=0.
-          RQNIBLTEN(I,K,J)=0. ! RGF
+        !  RQNIBLTEN(I,K,J)=0. ! RGF
 !BSF          RQSBLTEN(I,K,J)=0.
 !BSF          RQRBLTEN(I,K,J)=0.
 !BSF          RQGBLTEN(I,K,J)=0.
@@ -1789,7 +1789,7 @@
      &        ,bl_mynn_edmf=config_flags%bl_mynn_edmf                     &
      &        ,bl_mynn_edmf_mom=config_flags%bl_mynn_edmf_mom             &
      &        ,bl_mynn_edmf_tke=config_flags%bl_mynn_edmf_tke             &
-     &        ,bl_mynn_edmf_part=config_flags%bl_mynn_edmf_part           &
+     &        ,bl_mynn_mixscalars=config_flags%bl_mynn_mixscalars         &
      &        ,bl_mynn_cloudmix=config_flags%bl_mynn_cloudmix             &
      &        ,bl_mynn_mixqt=config_flags%bl_mynn_mixqt                   &
      &        ,edmf_a=grid%edmf_a,edmf_w=grid%edmf_w                      &
@@ -1799,8 +1799,10 @@
      &        ,qcg=grid%qcg, grav_settling=config_flags%grav_settling     &
 !    &        ,K_m=grid%K_m, K_h=grid%K_h, K_q=grid%K_q                   & ! was commented out in ARW
      &        ,vdfg=grid%vdfg                                             &
+     &        ,nupdraft=grid%nupdraft,maxMF=grid%maxmf     & ! RGF
+     &        ,ktop_shallow=grid%ktop_shallow                             & ! RGF
      &        ,QNI_CURR=MOIST_TRANS(IMS,KMS,JMS,P_QNI), F_QNI=F_QNI      &
-     &        ,RQNIBLTEN=RQNIBLTEN                                   &
+!    &        ,RQNIBLTEN=RQNIBLTEN                                   &
 ! RGF add end
      &               ,IS_CAMMGMP_USED=IS_CAMMGMP_USED                 &
      &               ,wstar=wstar_ysu,delta=delta_ysu                 &

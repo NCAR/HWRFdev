@@ -49,7 +49,7 @@ CONTAINS
                  ,bl_mynn_mixlength                                &
                  ,icloud_bl,qc_bl,cldfra_bl                        &
                  ,bl_mynn_edmf,bl_mynn_edmf_mom,bl_mynn_edmf_tke   &
-                 ,bl_mynn_edmf_part                                &
+                 ,bl_mynn_mixscalars                               &
                  ,bl_mynn_cloudmix,bl_mynn_mixqt                   &
                  ,edmf_a,edmf_w,edmf_thl                           &
                  ,edmf_qt,edmf_ent,edmf_qc                         &
@@ -84,6 +84,9 @@ CONTAINS
                  ,qi_curr, qs_curr, qg_curr                        &
                  ,rqvblten,rqcblten,rqiblten                       &
                  ,rqrblten,rqsblten,rqgblten                       &
+             !  Optional aerosol
+                 ,qnwfa_curr,f_qnwfa                               &
+                 ,qnifa_curr,f_qnifa                               &
              !  Optional moisture tracer flags
                  ,f_qv,f_qc,f_qr                                   &
                  ,f_qi,f_qs,f_qg                                   &
@@ -151,7 +154,8 @@ CONTAINS
                    , TEMFPBLSCHEME, GFSEDMFSCHEME           &
                    , CAMUWPBLSCHEME                                       &
                    , FITCHSCHEME, SHINHONGSCHEME                          &
-                   , GBMPBLSCHEME, MYJSFCSCHEME, MYNNPBLSCHEME2, MYNNPBLSCHEME3 ! RGF mod
+                   , GBMPBLSCHEME, MYJSFCSCHEME, MYNNPBLSCHEME2, MYNNPBLSCHEME3& ! RGF mod
+                   , p_qnwfa,p_qnifa
 #endif
 
    USE module_model_constants
@@ -564,7 +568,7 @@ CONTAINS
                                      bl_mynn_edmf,             &
                                      bl_mynn_edmf_mom,         &
                                      bl_mynn_edmf_tke,         &
-                                     bl_mynn_edmf_part,        &
+                                     bl_mynn_mixscalars,       &
                                      bl_mynn_cloudmix,         &
                                      bl_mynn_mixqt,            &
                                      icloud_bl
@@ -582,6 +586,8 @@ CONTAINS
         &    INTENT(OUT) ::               nupdraft,ktop_shallow
    REAL, OPTIONAL, DIMENSION( ims:ime , jms:jme ),              &
         &    INTENT(OUT) ::                               maxMF
+    REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ),     &
+           INTENT(INOUT) ::         qnwfa_curr,qnifa_curr
 
    REAL, OPTIONAL, DIMENSION( ims:ime, kms:kme, jms:jme ), &
         & INTENT(INOUT) ::  exch_tke      ! for GBM PBL scheme
@@ -671,7 +677,9 @@ CONTAINS
                                                      ,f_qs      &
                                                      ,f_qg      &
                                                      ,f_qnc     & !used in CAMUWPBL
-                                                     ,f_qni       !used in CAMUWPBL
+                                                     ,f_qni     & !used in CAMUWPBL
+                                                     ,f_qnwfa   &
+                                                     ,f_qnifa
 
    REAL, DIMENSION( ims:ime, kms:kme, jms:jme ),                 &
          OPTIONAL, INTENT(INOUT) ::                              &
@@ -683,6 +691,8 @@ CONTAINS
                      ,rqvblten,rqcblten,rqrblten                 &
                      ,rqiblten,rqsblten,rqgblten,rqniblten         !rqniblten  used in CAMUWPBL
 
+   REAL, DIMENSION( ims:ime, kms:kme, jms:jme ) ::   & !local: added for MYNN
+                      rqncblten,rqnwfablten,rqnifablten
 
    REAL,       DIMENSION( ims:ime, jms:jme )                    , &
                OPTIONAL                                         , &
@@ -780,7 +790,8 @@ CONTAINS
    LOGICAL :: radiation
    LOGICAL :: flag_bep
    LOGICAL :: flag_myjsfc, flag_gfdlsfc ! RGF
-   LOGICAL :: flag_qv, flag_qc, flag_qr, flag_qi, flag_qs, flag_qg, flag_qnc,flag_qni !flag_qnc,flag_qnc are used in camuwpbl scheme
+   LOGICAL :: flag_qv, flag_qc, flag_qr, flag_qi, flag_qs, flag_qg, &
+              flag_qnc,flag_qni, flag_qnwfa, flag_qnifa
    CHARACTER*256 :: message
    REAL    :: next_bl_time
    LOGICAL :: run_param , doing_adapt_dt , decided
@@ -835,6 +846,8 @@ CONTAINS
   flag_qg = .FALSE. ; IF ( PRESENT( F_QG ) ) flag_qg = F_QG
   flag_qnc = .FALSE. ; IF ( PRESENT( F_QNC ) ) flag_qnc = F_QNC !Used in CAMUWPBL
   flag_qni = .FALSE. ; IF ( PRESENT( F_QNI ) ) flag_qni = F_QNI !Used in CAMUWPBL
+  flag_qnwfa = .FALSE. ; IF ( PRESENT( F_QNWFA ) ) flag_qnwfa = F_QNWFA
+  flag_qnifa = .FALSE. ; IF ( PRESENT( F_QNIFA ) ) flag_qnifa = F_QNIFA
 
   if (bl_pbl_physics .eq. 0) return
 
@@ -1671,7 +1684,10 @@ CONTAINS
            IF ( PRESENT( qv_curr )  .AND. PRESENT( qc_curr )  .AND. &
                 PRESENT( rqvblten ) .AND. PRESENT( rqcblten ) .AND. &
                 PRESENT( qi_curr ) .AND. PRESENT( rqiblten ) .AND.  &
+! RGF dodge rqniblten for HWRF
+#if (EM_CORE==1)
                 PRESENT( rqniblten ) .AND. PRESENT( qni_curr ) .AND.&
+#endif
                 PRESENT(qke) .AND. PRESENT(tsq) .AND.               &
                 PRESENT(qsq) .AND. PRESENT(cov) .AND.               &
                 PRESENT(rmol) .AND.                                 &
@@ -1694,8 +1710,10 @@ CONTAINS
               CALL  mynn_bl_driver(&
                    &initflag=initflag,grav_settling=grav_settling,       &
                    &delt=dtbl,dz=dz8w,dx=dx,znt=znt,                     &
-                   &u=u_phy,v=v_phy,w=w,th=th_phy,qv=qv_curr,qc=qc_curr, &
-                   &qi=qi_curr,qni=qni_curr,qnc=qnc_curr,                &
+                   &u=u_phy,v=v_phy,w=w,th=th_phy,qv=qv_curr,            &
+                   &qc=qc_curr,qi=qi_curr,                               &
+                   &qnc=qnc_curr,qni=qni_curr,                           &
+                   &QNWFA=qnwfa_curr,QNIFA=qnifa_curr,                   &
                    &p=p_phy,exner=pi_phy,rho=rho,T3D=t_phy,              &
                    &xland=xland,ts=tsk,qsfc=qsfc,qcg=qcg,ps=psfc,        &
                    &ust=ust,ch=ch,hfx=hfx,qfx=qfx,rmol=rmol,wspd=wspd,   &
@@ -1711,7 +1729,8 @@ CONTAINS
                    &Tsq=tsq,Qsq=qsq,Cov=cov,                             &
                    &RUBLTEN=rublten,RVBLTEN=rvblten,RTHBLTEN=rthblten,   &
                    &RQVBLTEN=rqvblten,RQCBLTEN=rqcblten,RQIBLTEN=rqiblten,&
-                   &RQNIBLTEN=rqniblten,                                 &
+                   &RQNCBLTEN=rqncblten,RQNIBLTEN=rqniblten,             &
+                   &RQNWFABLTEN=rqnwfablten,RQNIFABLTEN=rqnifablten,     &
                    &EXCH_H=exch_h,EXCH_M=exch_m,                         &
                    &pblh=pblh,KPBL=KPBL                                  &
                    &,el_pbl=el_pbl                                       &
@@ -1726,14 +1745,18 @@ CONTAINS
                    &,bl_mynn_edmf=bl_mynn_edmf                           &
                    &,bl_mynn_edmf_mom=bl_mynn_edmf_mom                   &
                    &,bl_mynn_edmf_tke=bl_mynn_edmf_tke                   &
-                   &,bl_mynn_edmf_part=bl_mynn_edmf_part                 &
+                   &,bl_mynn_mixscalars=bl_mynn_mixscalars               &                   
                    &,bl_mynn_cloudmix=bl_mynn_cloudmix                   &
                    &,bl_mynn_mixqt=bl_mynn_mixqt                         &
                    &,edmf_a=edmf_a,edmf_w=edmf_w,edmf_qt=edmf_qt         &
                    &,edmf_thl=edmf_thl,edmf_ent=edmf_ent,edmf_qc=edmf_qc &
+                   &,nupdraft=nupdraft,maxMF=maxMF                       &
+                   &,ktop_shallow=ktop_shallow                           &
                    &,spp_pbl=spp_pbl,pattern_spp_pbl=pattern_spp_pbl     &
-                   &,FLAG_QI=flag_qi,FLAG_QNI=flag_qni                   &
-                   &,FLAG_QC=flag_qc,FLAG_QNC=flag_qnc                   &
+                   &,RTHRATEN=RTHRATEN                                   &
+                   &,FLAG_QC=flag_qc,FLAG_QI=flag_qi                     &
+                   &,FLAG_QNC=flag_qnc,FLAG_QNI=flag_qni                 &
+                   &,FLAG_QNWFA=flag_qnwfa,FLAG_QNIFA=flag_qnifa         &
                    ,IDS=ids,IDE=ide,JDS=jds,JDE=jde,KDS=kds,KDE=kde      &
                    ,IMS=ims,IME=ime,JMS=jms,JME=jme,KMS=kms,KME=kme      &
                    ,ITS=its,ITE=ite,JTS=jts,JTE=jte,KTS=kts,KTE=kte      &
@@ -1783,6 +1806,51 @@ CONTAINS
                   PRESENT( vdfg )
                CALL wrf_debug(0,message)
               CALL wrf_error_fatal('Lack arguments to call MYNN pbl')
+           ENDIF
+
+           !fill scalar_tend array. The RQN*BLTEN arrays are no longer
+           !passed to module_physics_addtendc.F (for MYNN)
+           IF (bl_mynn_mixscalars .eq. 1) THEN
+              IF (PRESENT( qni_curr ) .AND. Flag_qni) THEN
+                !print*,"Updating qni after mynn-edmf",P_QNI
+                DO j=j_start(ij),j_end(ij)
+                DO k=kts,kte 
+                DO i=i_start(ij),i_end(ij)
+                   scalar_tend(i,k,j,P_QNI)=RQNIBLTEN(i,k,j)
+                enddo
+                enddo
+                enddo
+              ENDIF
+              IF (PRESENT( qnc_curr ) .AND. Flag_qnc) THEN
+                !print*,"Updating qnc after mynn-edmf",P_QNC
+                DO j=j_start(ij),j_end(ij)
+                DO k=kts,kte
+                DO i=i_start(ij),i_end(ij)
+                   scalar_tend(i,k,j,P_QNC)=RQNCBLTEN(i,k,j)
+                enddo
+                enddo
+                enddo
+              ENDIF
+              IF (PRESENT( qnwfa_curr ) .AND. Flag_qnwfa) THEN
+                !print*,"Updating qnwfa after mynn-edmf",P_QNWFA
+                DO j=j_start(ij),j_end(ij)
+                DO k=kts,kte
+                DO i=i_start(ij),i_end(ij)
+                   scalar_tend(i,k,j,P_QNWFA)=RQNWFABLTEN(i,k,j)
+                enddo
+                enddo
+                enddo
+              ENDIF
+              IF (PRESENT( qnifa_curr ) .AND. Flag_qnifa) THEN
+                !print*,"Updating qnifa after mynn-edmf",P_QNIFA
+                DO j=j_start(ij),j_end(ij)
+                DO k=kts,kte
+                DO i=i_start(ij),i_end(ij)
+                   scalar_tend(i,k,j,P_QNIFA)=RQNIFABLTEN(i,k,j)
+                enddo
+                enddo
+                enddo
+              ENDIF
            ENDIF
 
 #if (EM_CORE==1) 

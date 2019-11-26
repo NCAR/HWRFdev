@@ -962,7 +962,8 @@ state   real   edmf_thl        ikj     misc        1         -      h         "e
 state   real   edmf_qt         ikj     misc        1         -      h         "edmf_qt"          "EDMF qt  - mean moist updrafts" "kg kg-1"
 state   real   edmf_ent        ikj     misc        1         -      h         "edmf_ent"          "EDMF entrainment  - mean moist updrafts" "m-1"
 state   real   edmf_qc         ikj     misc        1         -      h         "edmf_qc"           "EDMF qc - mean moist updrafts" "kg kg-1"
-
+state   integer  nupdraft       ij     misc        1         -      h         "nupdraft"         "Number of updrafts per grid cell"  ""
+state   real   maxMF            ij     misc        1         -      h         "maxMF"            "Maximum mass-flux (neg: all dry, pos: moist)"   "m/s * area"
 #FogDES variables
 state   real   fgdp             ij     misc        1         -      -        "fgdp"                "Accumulated fog deposition"    "mm"
 state   real   dfgdp            ij     misc        1         -      -        "dfgdp"               "Fog deposition during timestep"    "mm"
@@ -1485,12 +1486,12 @@ rconfig   integer shcu_physics            namelist,physics      max_domains    0
 rconfig   integer     cu_diag             namelist,physics      max_domains    0       rh0123       "cu_diag"            " additional t-averaged stuff for cuphys"      ""
 rconfig   integer kf_edrates              namelist,physics      max_domains    0       rh   "kf_edrates"           "output entrainment/detrainment rates and convective timescale for KF schemes"      ""
 rconfig   logical     bl_mynn_tkeadvect   namelist,physics      max_domains    .false.  rh      "bl_mynn_tkeadvect"             ""      ""
-rconfig   integer     bl_mynn_cloudpdf    namelist,physics      1              2       irh      "bl_mynn_cloudpdf"              ""      ""
-rconfig   integer     bl_mynn_mixlength   namelist,physics      1              1       irh      "bl_mynn_mixlength"             "0:original,1:RAP/HRRR,2:new blending&cloud mix length" ""
-rconfig   integer     bl_mynn_edmf        namelist,physics      max_domains    0       irh      "bl_mynn_edmf"                  "0:off,1:activate mass-flux in mynn"                    ""
-rconfig   integer     bl_mynn_edmf_mom    namelist,physics      max_domains    1       irh      "bl_mynn_edmf_mom"              "0:off,1:activate mass-flux transport of momentum"      ""
+rconfig   integer     bl_mynn_cloudpdf    namelist,physics      1              2       irh      "bl_mynn_cloudpdf"              "0:original, 1:Kuwano, 2:Chaboreau-Bechtold"            ""
+rconfig   integer     bl_mynn_mixlength   namelist,physics      1              2       irh      "bl_mynn_mixlength"             "0:original,1:RAP/HRRR,2:new blending&cloud mix length" ""
+rconfig   integer     bl_mynn_edmf        namelist,physics      max_domains    1       irh      "bl_mynn_edmf"                  "0:off,1:activate mass-flux in mynn"                    ""
+rconfig   integer     bl_mynn_edmf_mom    namelist,physics      max_domains    0       irh      "bl_mynn_edmf_mom"              "0:off,1:activate mass-flux transport of momentum"      ""
 rconfig   integer     bl_mynn_edmf_tke    namelist,physics      max_domains    0       irh      "bl_mynn_edmf_tke"              "0:off,1:activate mass-flux transport of tke"           ""
-rconfig   integer     bl_mynn_edmf_part   namelist,physics      max_domains    0       irh      "bl_mynn_edmf_part"             "0:off,1:activate areal partitioning of ed and mf"      ""
+rconfig   integer     bl_mynn_mixscalars  namelist,physics      max_domains    0       irh      "bl_mynn_mixscalars"            "0:off,1:activate mixing of scalars (qnx, qnxfa) in MYNN"      ""
 rconfig   integer     bl_mynn_cloudmix    namelist,physics      max_domains    1       irh      "bl_mynn_cloudmix"              "0:off,1:activate mixing of all cloud species"          ""
 rconfig   integer     bl_mynn_mixqt       namelist,physics      max_domains    0       irh      "bl_mynn_mixqt" 
 rconfig   integer     icloud_bl           namelist,physics      1              1       irh      "icloud_bl"                     "0:no subgrid cloud-radiation coupling,1:activated"     ""
@@ -1882,8 +1883,7 @@ package   idealscmsfcscheme  sf_sfclay_physics==89   -             -
 package   gbmpblscheme  sf_sfclay_physics==12       -             -
 
 package   mynn_tkebudget bl_mynn_tkebudget==1        -             state:qSHEAR,qBUOY,qDISS,qWT,dqke
-package   mynn_stem_edmf bl_mynn_edmf==1            -              state:edmf_a,edmf_w,edmf_thl,edmf_qt,edmf_ent,edmf_qc
-package   mynn_temf_edmf bl_mynn_edmf==2            -              state:edmf_a,edmf_w,edmf_thl,edmf_qt,edmf_ent,edmf_qc
+package   mynn_dmp_edmf  bl_mynn_edmf==1            -              state:edmf_a,edmf_w,edmf_thl,edmf_qt,edmf_ent,edmf_qc,ktop_shallow,maxmf,nupdraft
 package   pbl_cloud      icloud_bl==1                -             state:cldfra_bl,qc_bl
 
 # dfi
@@ -1906,8 +1906,8 @@ package   myjpblscheme   bl_pbl_physics==2           -             -
 package   gfsscheme      bl_pbl_physics==93          -             state:hpbl2d,heat2d,evap2d,rc2d
 package   gfsedmfscheme  bl_pbl_physics==3           -             state:hpbl2d,heat2d,evap2d
 package   qnsepblscheme  bl_pbl_physics==4           -             -
-package   mynnpblscheme2 bl_pbl_physics==5           -             scalar:qke_adv;state:qke,sh3d,tsq,qsq,cov
-package   mynnpblscheme3 bl_pbl_physics==6           -             scalar:qke_adv;state:qke,sh3d,tsq,qsq,cov
+package   mynnpblscheme2 bl_pbl_physics==5           -             scalar:qke_adv;state:qke,tke_pbl,sh3d,tsq,qsq,cov,el_pbl
+package   mynnpblscheme3 bl_pbl_physics==6           -             scalar:qke_adv;state:qke,tke_pbl,sh3d,tsq,qsq,cov,el_pbl
 package   acmpblscheme   bl_pbl_physics==7           -             -
 package   boulacscheme   bl_pbl_physics==8           -             - 
 package   camuwpblscheme bl_pbl_physics==9           -             -
