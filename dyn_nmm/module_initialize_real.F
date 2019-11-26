@@ -2288,6 +2288,7 @@ CONTAINS
 
 ! If file geo_nmm_nest.l01.nc exists, read in high-resolution landsea masks and
 ! reset the above-generated sea land mask (obtained from the nearest point method based on its parent domain)
+
      input_fname='geo_nmm_nest.l01.nc'
      inquire(file=trim(input_fname),exist=file_exists_nc)
      if ( .NOT. file_exists_nc ) then
