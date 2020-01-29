@@ -1906,8 +1906,8 @@ package   myjpblscheme   bl_pbl_physics==2           -             -
 package   gfsscheme      bl_pbl_physics==93          -             state:hpbl2d,heat2d,evap2d,rc2d
 package   gfsedmfscheme  bl_pbl_physics==3           -             state:hpbl2d,heat2d,evap2d
 package   qnsepblscheme  bl_pbl_physics==4           -             -
-package   mynnpblscheme2 bl_pbl_physics==5           -             scalar:qke_adv;state:qke,tke_pbl,sh3d,tsq,qsq,cov,el_pbl
-package   mynnpblscheme3 bl_pbl_physics==6           -             scalar:qke_adv;state:qke,tke_pbl,sh3d,tsq,qsq,cov,el_pbl
+package   mynnpblscheme2 bl_pbl_physics==5           -             scalar:qke_adv;state:qke,tke_mynn,sh3d,tsq,qsq,cov,el_pbl
+package   mynnpblscheme3 bl_pbl_physics==6           -             scalar:qke_adv;state:qke,tke_mynn,sh3d,tsq,qsq,cov,el_pbl
 package   acmpblscheme   bl_pbl_physics==7           -             -
 package   boulacscheme   bl_pbl_physics==8           -             - 
 package   camuwpblscheme bl_pbl_physics==9           -             -
