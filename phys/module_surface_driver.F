@@ -22,6 +22,7 @@ CONTAINS
      &          ,zkmax,ribn,charn,msang,scurx,scury,icoef_sf,iwavecpl,lcurr_sf & !for gfdl-sf drag
      &          ,pert_Cd, ens_random_seed, ens_Cdamp                  &
      &          ,cd_out,ch_out                                        &
+     &          ,moli_out                                             &
 #else
      &          ,psim,p_phy,q10,q2,qfx,qsfc,qshltr,qz0                &
 #endif
@@ -668,6 +669,7 @@ CONTAINS
    REAL, DIMENSION( ims:ime, jms:jme ) , INTENT(INOUT):: TAUY
    REAL, DIMENSION( ims:ime, jms:jme ) , INTENT(INOUT):: cd_out
    REAL, DIMENSION( ims:ime, jms:jme ) , INTENT(INOUT):: ch_out
+   REAL, DIMENSION( ims:ime, jms:jme ) , INTENT(INOUT):: moli_out
    REAL, DIMENSION( ims:ime, jms:jme ) , INTENT(INOUT):: CDX ! RGF
 #endif
    REAL, DIMENSION( ims:ime, jms:jme ) , INTENT(INOUT)::   QSFC
@@ -2338,6 +2340,7 @@ CONTAINS
                    GZ1OZ0,WSPD,BR,ZKMAX, ISFFLX,                  &
                    EP_1,EP_2,KARMAN,GFDL_NTSFLG,SFENTH,           &
                    cd_out, ch_out,                                &
+                   moli_out, &
                    ids,ide, jds,jde, kds,kde,                     &
                    ims,ime, jms,jme, kms,kme,                             &
                    i_start(ij),i_end(ij),j_start(ij),j_end(ij),kts,kte    )

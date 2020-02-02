@@ -1692,6 +1692,7 @@
      &            ,GRID%HPBL2D, GRID%EVAP2D, GRID%HEAT2D,GRID%RC2D               &  !S&P Kwon
      &            ,GRID%SFCHEADRT,GRID%INFXSRT,GRID%SOLDRAIN           &  !Hydrology, no-op right now
      &            ,grid%cd_out,grid%ch_out                             &
+     &            ,grid%moli_out                                       &
      &            ,grid%ulowl,grid%vlowl                               &
      &            ,grid%zsig1,grid%rchno                               &
      &            ,grid%charn,grid%msang                               &

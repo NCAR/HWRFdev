@@ -798,6 +798,7 @@
      &                ,HPBL2D, EVAP2D, HEAT2D,RC2D                      &  !Kwon S&P
      &                ,SFCHEADRT,INFXSRT,SOLDRAIN                       &  !Hydrology, no-op right now
      &                ,cd_out,ch_out                                    &
+     &                ,moli_out                                         &
      &                ,ulowl, vlowl                                     &
      &                ,zkmax, ribn                                      &
      &                ,charn, msang                                     &
@@ -940,6 +941,7 @@
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(IN)  :: scurx, scury
 
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: cd_out,ch_out
+      REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: moli_out
       REAL,DIMENSION(IMS:IME,JMS:JME),INTENT(INOUT) :: CDX ! RGF
       REAL,DIMENSION(IMS:IME,JMS:JME,KMS:KME),INTENT(INOUT) :: &
                                                        DTHBLDT         &
@@ -1489,6 +1491,7 @@
      &          ,ens_Cdamp=config_flags%ens_Cdamp                       &
 #endif
      &          ,cd_out=grid%cd_out,ch_out=grid%ch_out                  &
+     &          ,moli_out=grid%moli_out                                 &
 #if (NMM_CORE==1)
      &          ,cdx=grid%cdx   & ! RGF
 #endif
@@ -1795,7 +1798,7 @@
      &        ,edmf_a=grid%edmf_a,edmf_w=grid%edmf_w                      &
      &        ,edmf_thl=grid%edmf_thl,edmf_qt=grid%edmf_qt                &
      &        ,edmf_ent=grid%edmf_ent,edmf_qc=grid%edmf_qc                &
-     &        ,rmol=grid%rmol, ch=grid%ch                                 &
+     &        ,rmol=grid%moli_out, ch=grid%ch_out                         &
      &        ,qcg=grid%qcg, grav_settling=config_flags%grav_settling     &
 !    &        ,K_m=grid%K_m, K_h=grid%K_h, K_q=grid%K_q                   & ! was commented out in ARW
      &        ,vdfg=grid%vdfg                                             &

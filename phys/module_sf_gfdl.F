@@ -21,6 +21,7 @@ CONTAINS
                      GZ1OZ0,WSPD,BR,ZKMAX, ISFFLX,              &
                      EP1,EP2,KARMAN,NTSFLG,SFENTH,              &
                      Cd_out,Ch_out,                             &
+                     moli_out, &
                      ids,ide, jds,jde, kds,kde,                 &
                      ims,ime, jms,jme, kms,kme,                 &
                      its,ite, jts,jte, kts,kte                  )
@@ -137,6 +138,7 @@ CONTAINS
                                         CHS,                            &
                                         Cd_out,                         &
                                         Ch_out,                         &
+                                        moli_out,                       &
                                         CHS2,                           &
                                         CPM,                            &
                                         CQS2,                           &
@@ -228,6 +230,7 @@ CONTAINS
                                         zoc,                            &
                                         mzoc,                           &  !ADDED BY KWON FOR momentum Zo
                                         tzot,                           &  !Wang
+                                        moli,                           &
                                         wetc,                           &
                                         slwdc,                          &
                                         rib,                            &
@@ -381,6 +384,7 @@ CONTAINS
                    pert_Cd, ens_random_seed, ens_Cdamp,        &
                    upc,vpc,tpc,rpc,dt,J,wind10,xxfh2,ntsflg,SFENTH,   &
                    tzot,   &  ! tzot , zot for thermal z0 Wang
+                   moli, &    ! (1.0/L)
                    ids,ide, jds,jde, kds,kde,                  &
                    ims,ime, jms,jme, kms,kme,                  &
                    its,ite, jts,jte, kts,kte                   )
@@ -469,6 +473,7 @@ CONTAINS
         cm(i)      = cdm(i)
         Cd_out(i,j) = cm(i)
         Ch_out(i,j) = ch(i)
+        moli_out(i,j) = moli(i)*100.0
 
 !!! convert cd, ch to values at 10m, for output
          if ( wind10(i) .ge. 0.1 ) then
@@ -604,6 +609,7 @@ CONTAINS
                           pert_Cd, ens_random_seed, ens_Cdamp,            &
                           upc,vpc,tpc,rpc,dt,jfix,wind10,xxfh2,ntsflg,sfenth,    &
                            tzot, &
+                           moli, &
                           ids,ide, jds,jde, kds,kde,                      &
                           ims,ime, jms,jme, kms,kme,                      &
                           its,ite, jts,jte, kts,kte                       )
@@ -665,6 +671,7 @@ CONTAINS
       real, intent (out), dimension (ims :ime ) :: xxfh
       real, intent (out), dimension (ims :ime ) :: xxfh2
       real, intent (out), dimension (ims :ime ) :: wind10
+      real, intent (out), dimension (ims :ime ) :: moli
 
       real, intent ( inout), dimension (ims :ime ) :: zoc,mzoc    !KWON
       real, intent ( inout), dimension (ims :ime ) :: tzot        !WANG
@@ -1328,6 +1335,7 @@ CONTAINS
         
 !      in hwrf thermal znot is loaded back into the zoc array for next step
              zoc(istb(i)) = szo
+        moli(istb(i)) = szeta(i)/zkmax(istb(i))  !Inverse of Obukhov length (1.0/L)
       enddo
 
       do i = 1,ip
@@ -1535,6 +1543,7 @@ CONTAINS
         endif
 !      in hwrf thermal znot is loaded back into the zoc array for next step
             zoc(iutb(i)) = uzo
+        moli(iutb(i)) = uzeta(i)/zkmax(iutb(i)) ! Inverse of Obukhov length (1.0/L) 
       enddo
 
 !------------------------------------------------------------------------

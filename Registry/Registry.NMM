@@ -464,6 +464,7 @@ state  real   AKMS_OUT  ij    dyn_nmm   1    -     rh023       "AKMS_OUT"  "Outp
 #
 state  real   cd_out    ij    dyn_nmm   1    -     rh0123d=(DownCopy)       "CD10"  "sfc exch coeff for momentum at 10m"        "m2 s-1"
 state  real   ch_out    ij    dyn_nmm   1    -     rh0123d=(DownCopy)       "CH10"  "sfc exch coeff for heat at 10m"            "m2 s-1"
+state  real   moli_out  ij    dyn_nmm   1    -     rh0123d=(DownCopy)       "MOLI"  "Inverse Obukhov length"            "m-1"
 
 state  real   albase    ij    dyn_nmm   1    -     i01rh023d=(DownCopy) "ALBASE"    "Base albedo"            ""
 state  real   albedo    ij    dyn_nmm   1    -     irh023      "ALBEDO"    "Dynamic albedo"         ""
