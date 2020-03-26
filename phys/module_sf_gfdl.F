@@ -260,6 +260,7 @@ CONTAINS
                                         KM
 
       real :: tmp9,zhalf  ! wang, height of the first half level
+      REAL,PARAMETER :: EPSUST=0.07
 
         DATA MAXSMC/0.339, 0.421, 0.434, 0.476, 0.476, 0.439,  &
                     0.404, 0.464, 0.465, 0.406, 0.468, 0.468,  &
@@ -373,10 +374,6 @@ CONTAINS
 !       write(0,*)'--------------------------------------------'
 !     endif
 
-!     do i = its,ite
-!       WRITE(0,1010)i,j,upc(kts,i),vpc(kts,i),tpc(kts,i),rpc(kts,i),     &
-!                    pkmax(i),pspc(i),wetc(i),tjloc(i),zoc(i),tstrc(i)
-!     enddo
 
      CALL MFLUX2(  fxh,fxe,fxmx,fxmy,cdm,rib,xxfh,zoc,mzoc,tstrc,   &    !mzoc for momentum Zo KWON
                    pspc,pkmax,wetc,slwdc,tjloc,                &
@@ -456,6 +453,7 @@ CONTAINS
         gz1oz0(i,j)=alog(zkmax(i,j)/znt(i,j))
         ustar   (i)= 0.01*sqrt(cdm(i)*   &
                    (upc(kts,i)*upc(kts,i) + vpc(kts,i)*vpc(kts,i)))
+        ustar (i) = MAX (ustar(i),EPSUST)
 !       convert from g/(cm*cm*sec) to kg/(m*m*sec)
         qfx   (i,j)=-10.*fxe(i)            ! BOB: qfx   (i,1)=-10.*fxe(i)
 !       cpcgs  = 1.00464e7
