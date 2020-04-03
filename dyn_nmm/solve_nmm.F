@@ -169,12 +169,18 @@
       real :: et_max,this_tim
       double precision :: fhr
       integer :: n_print_time
+#ifdef IDEAL_NMM_TC
 !!BEGIN: LSM changes for LANDFALL: Subashini 7/27/2016
-      integer :: move_land_time
-      integer :: SOIL_ID, VEG_ID, DIRN
-      real :: land_albedo, land_emiss, land_vgfrac, land_smc, land_z0
+      integer,save :: move_land_time
+      integer,save :: SOIL_ID, VEG_ID, DIRN
+      real,save :: land_albedo, land_emiss, land_vgfrac, land_smc, land_z0
       NAMELIST/param_land/SOIL_ID, VEG_ID, DIRN, land_albedo, land_emiss, land_vgfrac, land_smc,land_z0
+      INTEGER                                         :: imin,jmin,imax,jmax,proceed
+      LOGICAL,save                                    :: mvland, logic_temp
+      REAL                                            :: s_temp
+      NAMELIST / init_land /imin,jmin,imax,jmax,proceed,VEG_ID,SOIL_ID,mvland,logic_temp,s_temp
 !! END: LSM changes for LANDFALL : Subashini 7/27/2016
+#endif
 
 !
 !-----------------------------------------------------------------------
@@ -2625,11 +2631,19 @@
 !!BEGIN: LSM changes for LANDFALL: Subashini 7/27/2016
 #ifdef IDEAL_NMM_TC
 
+
      IF(grid%NTSD==0 .and. grid%id .gt. 1)THEN  ! Initialize some variables
            call wrf_debug(1,'NESTS INITIALIZED TO WATER WORLD')
            grid%sm=1.0    ! Initialize a water world in the nests
+!open ideal_land.nml for namelist values
+
+      open(8,FILE='land.nml')
+      read(UNIT=8,NML=init_land)
+      read(UNIT=8,NML=param_land)
+      close(UNIT=8)
      ENDIF
 !
+     if ( mvland ) then
      move_land_time=nint(1200./30) ! This needs to be changed for different parent domain resolution & dt.  Subashini V1.0 7.13.2016
 
      IF(MOD(grid%NTSD,move_land_time)==0)THEN    ! n_print_time
@@ -2639,11 +2653,6 @@
 #ifdef DM_PARALLEL
 #    include "HALO_NMM_INIT_3.inc"
 #endif
-!open ideal_land.nml for namelist values
-
-      open(8,FILE='land.nml')
-      read(UNIT=8,NML=param_land)
-      close(UNIT=8)
 
        CALL MOVE_LAND (grid%SM,grid%nmm_tsk        &
                       ,grid%SST,grid%FIS           &
@@ -2661,7 +2670,7 @@
       DO J = JMS, JME
        DO I = IMS,IME
         if(grid%SM(I,J) .le. 0.5)then
-         grid%nmm_tsk(I,J)=grid%nmm_tsk(I-1,J)
+         grid%nmm_tsk(I,J)=grid%nmm_tsk(max(IMS,I-1),J)
          grid%albedo(I,J)=land_albedo
          grid%epsr(I,J)=land_emiss
          grid%isltyp(I,J)=SOIL_ID
@@ -2678,7 +2687,7 @@
       DO J = JMS, JME
        DO I = IME,IMS, -1
         if(grid%SM(I,J) .le. 0.5)then
-         grid%nmm_tsk(I,J)=grid%nmm_tsk(I+1,J)
+         grid%nmm_tsk(I,J)=grid%nmm_tsk(min(IME,I+1),J)
          grid%albedo(I,J)=land_albedo
          grid%epsr(I,J)=land_emiss
          grid%isltyp(I,J)=SOIL_ID
@@ -2696,7 +2705,7 @@
      ENDIF
 
      ENDIF
-
+     endif
 #endif
 !!END: LSM changes for LANDFALL : Subashini 7/27/2016
 
