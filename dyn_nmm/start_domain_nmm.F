@@ -280,7 +280,8 @@
 
 #if ( HWRF == 1 )
       call clear_ij_halos(grid,config_flags%halo_debug)
-      if(grid%id==3) then
+!  Biju's doing feeding multistorm innermost nests with parent SSTs
+      if(grid%id > 1 .and. mod(grid%id-1,2) == 0) then   
          grid%force_sst=1
       else
          grid%force_sst=2
